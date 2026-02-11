@@ -1,0 +1,4119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Forest Javelin - Finnish Autumn Championship</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+
+#ui-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+
+/* Title Screen */
+#title-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.6); z-index: 20; cursor: pointer;
+  pointer-events: all;
+}
+#title-screen h1 {
+  font-size: 4em; color: #d4a043; text-shadow: 3px 3px 8px #000;
+  letter-spacing: 4px; margin-bottom: 10px;
+}
+#title-screen h2 {
+  font-size: 1.4em; color: #a0b89c; text-shadow: 2px 2px 4px #000;
+  margin-bottom: 40px; font-weight: normal;
+}
+#title-screen .start-text {
+  font-size: 1.2em; color: #ccc; animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+/* HUD */
+#hud {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10; display: none;
+}
+#crosshair {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 24px; height: 24px;
+}
+#crosshair::before, #crosshair::after {
+  content: ''; position: absolute; background: rgba(255,255,255,0.7);
+}
+#crosshair::before { width: 2px; height: 24px; left: 11px; top: 0; }
+#crosshair::after { width: 24px; height: 2px; top: 11px; left: 0; }
+
+#power-meter {
+  position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 200px; border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+  display: none;
+}
+#power-fill {
+  position: absolute; bottom: 0; width: 100%;
+  background: linear-gradient(to top, #4a4, #aa4, #a44);
+  transition: height 0.05s;
+}
+
+#info-panel {
+  position: absolute; top: 20px; left: 20px; color: #ddd;
+  text-shadow: 1px 1px 3px #000; font-size: 14px; line-height: 1.8;
+}
+
+#wind-indicator {
+  position: absolute; top: 20px; right: 20px; color: #ddd;
+  text-shadow: 1px 1px 3px #000; font-size: 14px; text-align: right;
+}
+
+#distance-display {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  color: #d4a043; font-size: 3em; text-shadow: 2px 2px 6px #000;
+  display: none; text-align: center;
+}
+#distance-display .sub {
+  font-size: 0.4em; color: #aaa; display: block; margin-top: 5px;
+}
+
+#angle-display {
+  position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.7); font-size: 14px;
+  text-shadow: 1px 1px 3px #000;
+}
+
+/* Dialogue */
+#dialogue-box {
+  position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+  width: 700px; max-width: 90vw; background: rgba(10,15,10,0.92);
+  border: 2px solid rgba(160,184,156,0.4); border-radius: 8px;
+  padding: 20px 24px; z-index: 30; display: none;
+  pointer-events: all; cursor: pointer;
+}
+#dialogue-name {
+  color: #d4a043; font-size: 16px; font-weight: bold; margin-bottom: 8px;
+}
+#dialogue-text {
+  color: #ccc; font-size: 15px; line-height: 1.6; min-height: 40px;
+}
+#dialogue-continue {
+  color: rgba(255,255,255,0.4); font-size: 12px; text-align: right;
+  margin-top: 8px;
+}
+
+/* Result overlay */
+#result-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.5); z-index: 25; pointer-events: all; cursor: pointer;
+}
+#result-content {
+  text-align: center; color: #fff;
+}
+#result-content h2 { font-size: 3em; margin-bottom: 10px; }
+#result-content p { font-size: 1.2em; color: #aaa; }
+
+/* Drinking Minigame UI */
+#drink-meter {
+  position: absolute; left: 40px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 200px; border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+  display: none;
+}
+#drink-fill {
+  position: absolute; bottom: 0; width: 100%;
+  background: linear-gradient(to top, #b8860b, #daa520);
+  transition: height 0.05s;
+}
+#drink-label {
+  position: absolute; left: 33px; top: calc(50% + 115px);
+  color: rgba(255,255,255,0.6); font-size: 11px; text-align: center;
+  text-shadow: 1px 1px 3px #000; display: none;
+}
+
+#nausea-meter {
+  position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 200px; border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+  display: none;
+}
+#nausea-fill {
+  position: absolute; bottom: 0; width: 100%;
+  background: linear-gradient(to top, #4a4, #aa4, #a44);
+  transition: height 0.05s;
+}
+#nausea-label {
+  position: absolute; right: 30px; top: calc(50% + 115px);
+  color: rgba(255,255,255,0.6); font-size: 11px; text-align: center;
+  text-shadow: 1px 1px 3px #000; display: none;
+}
+
+#drink-instruction {
+  position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.8); font-size: 16px;
+  text-shadow: 1px 1px 4px #000; white-space: nowrap; display: none;
+}
+
+#nausea-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 15; display: none;
+  background: radial-gradient(ellipse at center,
+    rgba(0,80,0,0) 40%,
+    rgba(0,60,0,0.4) 100%);
+}
+
+#puke-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column;
+  background: rgba(30,60,0,0.85); z-index: 25; pointer-events: all; cursor: pointer;
+}
+#puke-overlay h2 {
+  font-size: 4em; color: #7a3; text-shadow: 3px 3px 8px #000;
+  margin-bottom: 20px;
+}
+#puke-overlay p {
+  font-size: 1.2em; color: #aaa;
+}
+/* Character Select */
+#character-select {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.75); z-index: 20; pointer-events: all;
+}
+#character-select h2 {
+  font-size: 2em; color: #d4a043; text-shadow: 2px 2px 6px #000;
+  margin-bottom: 24px; letter-spacing: 2px;
+}
+#name-input {
+  font-family: 'Courier New', monospace; font-size: 1.2em;
+  padding: 10px 16px; width: 260px; text-align: center;
+  background: rgba(20,25,20,0.9); color: #ccc; border: 2px solid #4a6a4a;
+  border-radius: 6px; outline: none; margin-bottom: 24px;
+}
+#name-input:focus { border-color: #d4a043; color: #fff; }
+.color-grid {
+  display: flex; gap: 14px; margin-bottom: 28px; flex-wrap: wrap; justify-content: center;
+}
+.color-option {
+  width: 50px; height: 50px; border-radius: 8px; cursor: pointer;
+  border: 3px solid transparent; overflow: hidden; transition: border-color 0.2s;
+}
+.color-option:hover { border-color: rgba(212,160,67,0.5); }
+.color-option.selected { border-color: #d4a043; }
+.color-option .jacket-half {
+  width: 100%; height: 65%;
+}
+.color-option .beanie-half {
+  width: 100%; height: 35%;
+}
+#ready-btn {
+  font-family: 'Courier New', monospace; font-size: 1.1em;
+  padding: 12px 36px; background: #2a4a2a; color: #d4a043;
+  border: 2px solid #4a6a4a; border-radius: 6px; cursor: pointer;
+  letter-spacing: 2px; transition: background 0.2s;
+}
+#ready-btn:hover { background: #3a5a3a; }
+
+/* Bottle Toggle */
+#bottle-toggle {
+  position: absolute; bottom: 20px; right: 20px; width: 80px; height: 90px;
+  background: rgba(10,15,10,0.85); border: 2px solid #4a6a4a; border-radius: 8px;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  pointer-events: all; cursor: pointer; transition: opacity 0.3s;
+}
+#bottle-toggle:hover { border-color: #d4a043; }
+#bottle-toggle.completed { border-color: #4a6a4a; opacity: 0.5; pointer-events: none; }
+#bottle-toggle-icon { font-size: 36px; }
+#bottle-toggle-label { color: #aaa; font-size: 11px; margin-top: 4px; letter-spacing: 1px; }
+
+/* Mobile Controls */
+#mobile-controls {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 12; pointer-events: none;
+}
+#touch-aim-zone {
+  position: absolute; top: 0; left: 0; width: 100%; height: 60%;
+  pointer-events: all; touch-action: none;
+}
+#touch-drink-btn, #touch-throw-btn {
+  position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 80px; border-radius: 12px;
+  background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4);
+  color: #fff; font-family: 'Courier New', monospace; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  pointer-events: all; touch-action: none; user-select: none;
+  -webkit-user-select: none; line-height: 1.3;
+}
+#touch-drink-btn:active, #touch-throw-btn:active {
+  background: rgba(255,255,255,0.35); border-color: #d4a043;
+}
+
+@media (max-width: 600px) {
+  #title-screen h1 { font-size: 2.2em; }
+  #title-screen h2 { font-size: 1em; margin-bottom: 20px; }
+  #dialogue-box { padding: 14px 16px; }
+  #dialogue-text { font-size: 13px; }
+  #dialogue-continue { font-size: 11px; }
+  #info-panel { font-size: 12px; left: 10px; top: 10px; }
+  #wind-indicator { font-size: 12px; right: 10px; top: 10px; }
+  #drink-instruction { white-space: normal; text-align: center; max-width: 90vw; font-size: 14px; }
+  #angle-display { bottom: 120px; }
+  #bottle-toggle { bottom: 120px; right: 10px; width: 65px; height: 75px; }
+  #bottle-toggle-label { font-size: 10px; }
+  .color-option { width: 40px; height: 40px; }
+  #name-input { width: 200px; font-size: 1em; padding: 8px 12px; }
+  #drink-meter, #nausea-meter { height: 150px; }
+  #power-meter { height: 150px; }
+}
+
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <h1>FOREST JAVELIN</h1>
+  <h2>Finnish Autumn Championship</h2>
+  <div class="start-text" id="start-text">Click to begin</div>
+</div>
+
+<div id="character-select">
+  <h2>Choose Your Character</h2>
+  <input type="text" id="name-input" placeholder="Enter your name..." maxlength="20">
+  <div class="color-grid">
+    <div class="color-option selected" data-jacket="0x4a6a4a" data-beanie="0x2a2a2a">
+      <div class="jacket-half" style="background:#4a6a4a"></div>
+      <div class="beanie-half" style="background:#2a2a2a"></div>
+    </div>
+    <div class="color-option" data-jacket="0x1a2a4a" data-beanie="0x6a2222">
+      <div class="jacket-half" style="background:#1a2a4a"></div>
+      <div class="beanie-half" style="background:#6a2222"></div>
+    </div>
+    <div class="color-option" data-jacket="0x5a2a2a" data-beanie="0x555555">
+      <div class="jacket-half" style="background:#5a2a2a"></div>
+      <div class="beanie-half" style="background:#555555"></div>
+    </div>
+    <div class="color-option" data-jacket="0x5a4a2a" data-beanie="0xc8b890">
+      <div class="jacket-half" style="background:#5a4a2a"></div>
+      <div class="beanie-half" style="background:#c8b890"></div>
+    </div>
+    <div class="color-option" data-jacket="0x1a1a1a" data-beanie="0x2a3a5a">
+      <div class="jacket-half" style="background:#1a1a1a"></div>
+      <div class="beanie-half" style="background:#2a3a5a"></div>
+    </div>
+    <div class="color-option" data-jacket="0x666666" data-beanie="0xdddddd">
+      <div class="jacket-half" style="background:#666666"></div>
+      <div class="beanie-half" style="background:#dddddd"></div>
+    </div>
+  </div>
+  <button id="ready-btn">READY</button>
+</div>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="power-meter"><div id="power-fill"></div></div>
+  <div id="info-panel"></div>
+  <div id="wind-indicator"></div>
+  <div id="distance-display"></div>
+  <div id="angle-display"></div>
+  <div id="drink-meter"><div id="drink-fill"></div></div>
+  <div id="drink-label">BOTTLE</div>
+  <div id="nausea-meter"><div id="nausea-fill"></div></div>
+  <div id="nausea-label">NAUSEA</div>
+  <div id="drink-instruction">Hold SPACE to drink — but pace yourself!</div>
+
+  <div id="bottle-toggle">
+    <div id="bottle-toggle-icon">🍷</div>
+    <div id="bottle-toggle-label">DRINK (D)</div>
+  </div>
+</div>
+
+<div id="dialogue-box">
+  <div id="dialogue-name"></div>
+  <div id="dialogue-text"></div>
+  <div id="dialogue-continue">Click or Space to continue</div>
+</div>
+
+<div id="result-overlay">
+  <div id="result-content">
+    <h2 id="result-title"></h2>
+    <p id="result-sub"></p>
+  </div>
+</div>
+
+<div id="nausea-overlay"></div>
+
+<div id="puke-overlay">
+  <h2>HUUURGH!</h2>
+  <p>Click to try again...</p>
+</div>
+
+<div id="mobile-controls" style="display:none">
+  <div id="touch-aim-zone"></div>
+  <div id="touch-drink-btn">HOLD TO<br>DRINK</div>
+  <div id="touch-throw-btn">HOLD TO<br>CHARGE</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ============================================================
+// GLOBALS
+// ============================================================
+let scene, camera, renderer, clock;
+let audioCtx;
+let pointerLocked = false;
+const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+
+// Game state
+const STATES = {
+  TITLE: 'TITLE',
+  INTRO_DIALOGUE: 'INTRO_DIALOGUE',
+  DRINKING_INTRO: 'DRINKING_INTRO',
+  DRINKING: 'DRINKING',
+  DRINKING_COMPLETE: 'DRINKING_COMPLETE',
+  CELEBRATION_CAMERA: 'CELEBRATION_CAMERA',
+  PUKE_GAMEOVER: 'PUKE_GAMEOVER',
+  AIMING: 'AIMING',
+  CHARGING: 'CHARGING',
+  FLIGHT: 'FLIGHT',
+  LANDED: 'LANDED',
+  RESULT: 'RESULT',
+  ROUND_DIALOGUE: 'ROUND_DIALOGUE',
+  VICTORY: 'VICTORY',
+  DEFEAT: 'DEFEAT',
+  CHARACTER_SELECT: 'CHARACTER_SELECT',
+  BOTTLE2_GAMEOVER: 'BOTTLE2_GAMEOVER'
+};
+
+let gameState = STATES.TITLE;
+let currentRound = 0; // 0-indexed
+let currentThrow = 0;
+let bestDistances = [0, 0, 0, 0, 0, 0]; // best per round
+let throwDistances = [];
+let isNaked = false;
+
+const ROUNDS = [
+  { name: "The Warm-Up", target: 30, windBase: 2, desc: "Friendly introduction" },
+  { name: "The Challenge", target: 38, windBase: 3, desc: "Face the local favorite" },
+  { name: "The Headwind", target: 42, windBase: 5, desc: "The wind picks up" },
+  { name: "The Gauntlet", target: 48, windBase: 6, desc: "Only the determined survive" },
+  { name: "The Legend", target: 55, windBase: 8, desc: "Challenge the forest champion" },
+  { name: "The Naked Truth", target: 60, windBase: 10, desc: "Nothing left to lose" }
+];
+
+// Aim parameters
+let aimPitch = 35; // degrees, 5-55
+let aimYaw = 0;    // degrees, -20 to 20
+let chargePower = 0;
+let isCharging = false;
+let chargeDirection = 1;
+
+// Wind
+let windSpeed = 2;
+let windAngle = 0; // radians
+
+// Javelin flight
+let javelin = null;
+let javelinVel = new THREE.Vector3();
+let javelinFlying = false;
+let javelinLanded = false;
+let javelinHitTree = false;
+let landedDistance = 0;
+let landedFoul = false;
+
+// Arm
+let armGroup = null;
+let armAnimState = 'idle'; // idle, aiming, windup, release, follow, drinking_idle, drinking_active, drinking_done
+let armAnimTime = 0;
+
+// Drinking minigame
+let drinkProgress = 0;     // 0→1: how much of the bottle is drunk
+let nauseaLevel = 0;       // 0→1: puke at 1.0
+let isDrinking = false;    // true while Space held during DRINKING state
+let wineWobbleIntensity = 0; // persistent camera wobble after drinking
+let drinkGulpTimer = 0;    // timer for gulp sound spacing
+let lastStomachGurgle = 0; // cooldown for stomach gurgle sound
+
+const DRINK_RATE = 0.12;           // ~8.3s continuous drinking to finish
+const NAUSEA_BUILD_RATE = 0.18;    // base nausea gain/sec while drinking
+const NAUSEA_DECAY_RATE = 0.08;    // nausea recovery/sec while resting
+const DRINK_NAUSEA_ACCEL = 0.12;   // extra nausea scaled by current nausea
+
+// Environment objects
+let obstaclePine = null;
+let sectorLeftPine = null;
+let sectorRightPine = null;
+let treesInstanced = null;
+let birchInstanced = null;
+let forestUsedPositions = [];
+let leafParticles = null;
+let windParticles = null;
+let birdParticles = null;
+let celebrationAnimTime = 0;
+const CELEBRATION_DURATION = 5.5;
+let npcs = [];
+let npcMeshes = [];
+
+// Player customization
+let playerName = 'Friend';
+let playerJacketColor = 0x4a6a4a;
+let playerBeanieColor = 0x2a2a2a;
+
+// Second bottle
+let bottleNumber = 1;
+let bottle2Completed = false;
+let bottle2Available = false;
+let preBottle2AimPitch = 35;
+let preBottle2AimYaw = 0;
+let bottle2InProgress = false;
+
+const BOTTLE2_DRINK_RATE = 0.08;
+const BOTTLE2_NAUSEA_BUILD_RATE = 0.40;
+const BOTTLE2_NAUSEA_DECAY_RATE = 0.04;
+const BOTTLE2_NAUSEA_ACCEL = 0.30;
+
+// NPC walk animation
+let npcIsWalking = false;
+let npcWalkProgress = 0;
+const NPC_WALK_DURATION = 4.0;
+
+// Camera
+let PLAYER_POS = new THREE.Vector3(0, 1.7, 0);
+const THROW_DIR = new THREE.Vector3(0, 0, -1); // forward is -Z
+
+// Dialogue system
+let dialogueQueue = [];
+let dialogueActive = false;
+let dialogueCharIndex = 0;
+let dialogueFullText = '';
+let dialogueTimer = 0;
+let dialogueCallback = null;
+
+// ============================================================
+// TERRAIN HEIGHT
+// ============================================================
+function getTerrainHeight(x, z) {
+  const hillCenterX = 0;
+  const hillCenterZ = 2;
+  const hillPeak = 7;
+  const hillRadiusX = 35;
+  const hillRadiusZ = 45;
+
+  const dx = (x - hillCenterX) / hillRadiusX;
+  const dz = (z - hillCenterZ) / hillRadiusZ;
+  let h = hillPeak * Math.exp(-(dx * dx + dz * dz));
+
+  // Extra side dropoff for steep left/right slopes
+  const absX = Math.abs(x);
+  if (absX > 5) {
+    const sideFactor = (absX - 5) / 30;
+    h -= sideFactor * sideFactor * 2.5;
+  }
+
+  // Subtle sinusoidal noise for natural feel
+  h += Math.sin(x * 0.3 + z * 0.2) * 0.15;
+  h += Math.cos(x * 0.15 + z * 0.35) * 0.1;
+  h += Math.sin(x * 0.5) * 0.08;
+
+  return h;
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Set player height on terrain
+PLAYER_POS.y = getTerrainHeight(0, 0) + 1.7;
+
+// Custom shader chunks
+const treeSway = `
+  float sway = sin(time * 1.5 + position.x * 0.5 + position.z * 0.3) * 0.02;
+  sway += sin(time * 2.3 + position.x * 0.8) * 0.01;
+  float swayAmount = max(0.0, (position.y - 2.0) / 8.0);
+  transformed.x += sway * swayAmount * windStr;
+  transformed.z += sway * 0.5 * swayAmount * windStr;
+`;
+
+// ============================================================
+// AUDIO
+// ============================================================
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function playSound(type, params = {}) {
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const now = audioCtx.currentTime;
+
+  switch(type) {
+    case 'throw': {
+      // Grunt
+      const gruntOsc = audioCtx.createOscillator();
+      const gruntGain = audioCtx.createGain();
+      gruntOsc.type = 'sawtooth';
+      gruntOsc.frequency.setValueAtTime(120, now);
+      gruntOsc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+      gruntGain.gain.setValueAtTime(0.15, now);
+      gruntGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      gruntOsc.connect(gruntGain).connect(audioCtx.destination);
+      gruntOsc.start(now); gruntOsc.stop(now + 0.3);
+
+      // Whoosh
+      const bufferSize = audioCtx.sampleRate * 0.4;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const bandpass = audioCtx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.setValueAtTime(800, now);
+      bandpass.frequency.exponentialRampToValueAtTime(2000, now + 0.2);
+      bandpass.Q.value = 2;
+      const whooshGain = audioCtx.createGain();
+      whooshGain.gain.setValueAtTime(0.001, now);
+      whooshGain.gain.linearRampToValueAtTime(0.2, now + 0.1);
+      whooshGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      noise.connect(bandpass).connect(whooshGain).connect(audioCtx.destination);
+      noise.start(now); noise.stop(now + 0.4);
+      break;
+    }
+    case 'flight': {
+      const bufferSize = audioCtx.sampleRate * 2;
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1);
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      noise.loop = true;
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = 600; bp.Q.value = 3;
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.08, now);
+      g.gain.linearRampToValueAtTime(0.001, now + 2.5);
+      noise.connect(bp).connect(g).connect(audioCtx.destination);
+      noise.start(now); noise.stop(now + 2.5);
+      break;
+    }
+    case 'impact': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(150, now);
+      osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
+      g.gain.setValueAtTime(0.3, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.3);
+
+      // Leaf rustle
+      const bs = audioCtx.sampleRate * 0.3;
+      const nb = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+      const d = nb.getChannelData(0);
+      for (let i = 0; i < bs; i++) d[i] = (Math.random() * 2 - 1);
+      const n = audioCtx.createBufferSource(); n.buffer = nb;
+      const hp = audioCtx.createBiquadFilter();
+      hp.type = 'highpass'; hp.frequency.value = 3000;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(0.15, now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      n.connect(hp).connect(ng).connect(audioCtx.destination);
+      n.start(now); n.stop(now + 0.3);
+      break;
+    }
+    case 'tree_hit': {
+      // Loud crack
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
+      g.gain.setValueAtTime(0.4, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.2);
+
+      // Wood crack noise
+      const bs = audioCtx.sampleRate * 0.15;
+      const nb = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+      const d = nb.getChannelData(0);
+      for (let i = 0; i < bs; i++) d[i] = (Math.random() * 2 - 1) * (1 - i/bs);
+      const n = audioCtx.createBufferSource(); n.buffer = nb;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(0.35, now);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+      n.connect(ng).connect(audioCtx.destination);
+      n.start(now); n.stop(now + 0.15);
+      break;
+    }
+    case 'charge': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(200 + (params.power || 0) * 400, now);
+      g.gain.setValueAtTime(0.06, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.08);
+      break;
+    }
+    case 'cheer': {
+      for (let i = 0; i < 4; i++) {
+        const delay = i * 0.1 + Math.random() * 0.05;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(200 + Math.random() * 300, now + delay);
+        g.gain.setValueAtTime(0.05, now + delay);
+        g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.5);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(now + delay); osc.stop(now + delay + 0.5);
+      }
+      break;
+    }
+    case 'laugh': {
+      for (let i = 0; i < 6; i++) {
+        const t = now + i * 0.12;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(i % 2 === 0 ? 180 : 140, t);
+        g.gain.setValueAtTime(0.06, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(g).connect(audioCtx.destination);
+        osc.start(t); osc.stop(t + 0.1);
+      }
+      break;
+    }
+    case 'gulp': {
+      // Sine chirp + bubble oscillator
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+      g.gain.setValueAtTime(0.12, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.1);
+
+      // Bubble
+      const bub = audioCtx.createOscillator();
+      const bg = audioCtx.createGain();
+      bub.type = 'sine';
+      bub.frequency.setValueAtTime(600 + Math.random() * 200, now);
+      bub.frequency.exponentialRampToValueAtTime(200, now + 0.06);
+      bg.gain.setValueAtTime(0.06, now + 0.02);
+      bg.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      bub.connect(bg).connect(audioCtx.destination);
+      bub.start(now + 0.02); bub.stop(now + 0.08);
+      break;
+    }
+    case 'stomach_gurgle': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const lp = audioCtx.createBiquadFilter();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(60 + Math.random() * 30, now);
+      osc.frequency.linearRampToValueAtTime(40 + Math.random() * 20, now + 0.4);
+      lp.type = 'lowpass'; lp.frequency.value = 200; lp.Q.value = 5;
+      g.gain.setValueAtTime(0.1, now);
+      g.gain.linearRampToValueAtTime(0.15, now + 0.15);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.connect(lp).connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.5);
+      break;
+    }
+    case 'puke': {
+      // Sawtooth retch
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(100, now);
+      osc.frequency.linearRampToValueAtTime(180, now + 0.15);
+      osc.frequency.linearRampToValueAtTime(60, now + 0.5);
+      g.gain.setValueAtTime(0.25, now);
+      g.gain.linearRampToValueAtTime(0.3, now + 0.15);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc.connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.6);
+
+      // Noise splatter
+      const bs = audioCtx.sampleRate * 0.4;
+      const nb = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+      const d = nb.getChannelData(0);
+      for (let i = 0; i < bs; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bs);
+      const n = audioCtx.createBufferSource(); n.buffer = nb;
+      const lp = audioCtx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 800;
+      const ng = audioCtx.createGain();
+      ng.gain.setValueAtTime(0.2, now + 0.1);
+      ng.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      n.connect(lp).connect(ng).connect(audioCtx.destination);
+      n.start(now + 0.1); n.stop(now + 0.5);
+      break;
+    }
+    case 'burp': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const lp = audioCtx.createBiquadFilter();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(90, now);
+      osc.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+      lp.type = 'lowpass'; lp.frequency.value = 250; lp.Q.value = 3;
+      g.gain.setValueAtTime(0.15, now);
+      g.gain.linearRampToValueAtTime(0.2, now + 0.1);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(lp).connect(g).connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.4);
+      break;
+    }
+    case 'ambient': {
+      // Forest wind loop
+      const bs = audioCtx.sampleRate * 4;
+      const nb = audioCtx.createBuffer(1, bs, audioCtx.sampleRate);
+      const d = nb.getChannelData(0);
+      for (let i = 0; i < bs; i++) {
+        d[i] = (Math.random() * 2 - 1) * 0.5;
+        if (i > 0) d[i] = d[i] * 0.3 + d[i-1] * 0.7; // smooth
+      }
+      const n = audioCtx.createBufferSource(); n.buffer = nb; n.loop = true;
+      const lp = audioCtx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 400;
+      const ng = audioCtx.createGain(); ng.gain.value = 0.04;
+      n.connect(lp).connect(ng).connect(audioCtx.destination);
+      n.start(now);
+      break;
+    }
+  }
+}
+
+// ============================================================
+// PROCEDURAL TEXTURES
+// ============================================================
+function createLeafTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 256;
+  const ctx = c.getContext('2d');
+  // Base brown/orange
+  ctx.fillStyle = '#6b4226';
+  ctx.fillRect(0, 0, 256, 256);
+  // Random leaves
+  for (let i = 0; i < 800; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    const size = 3 + Math.random() * 8;
+    const colors = ['#8B4513', '#A0522D', '#CD853F', '#D2691E', '#B8860B', '#DAA520', '#CC7722', '#6B3A2A'];
+    ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+    ctx.beginPath();
+    ctx.ellipse(x, y, size, size * 0.6, Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Noise
+  for (let i = 0; i < 2000; i++) {
+    const x = Math.random() * 256;
+    const y = Math.random() * 256;
+    ctx.fillStyle = `rgba(${Math.random()*40},${Math.random()*20},0,0.15)`;
+    ctx.fillRect(x, y, 2, 2);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(40, 40);
+  return tex;
+}
+
+function createBarkTexture() {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 128;
+  const ctx = c.getContext('2d');
+  // Reddish-brown scots pine bark
+  ctx.fillStyle = '#7a4a2a';
+  ctx.fillRect(0, 0, 64, 128);
+  for (let y = 0; y < 128; y += 3) {
+    ctx.fillStyle = `rgba(${80 + Math.random()*40},${40 + Math.random()*20},${20 + Math.random()*15},0.5)`;
+    ctx.fillRect(0, y, 64, 2 + Math.random() * 3);
+  }
+  for (let i = 0; i < 100; i++) {
+    ctx.fillStyle = `rgba(${60+Math.random()*60},${30+Math.random()*30},${15+Math.random()*20},0.3)`;
+    ctx.fillRect(Math.random()*64, Math.random()*128, 3+Math.random()*8, 1+Math.random()*4);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+function createSkyTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  const grad = ctx.createLinearGradient(0, 0, 0, 512);
+  // Clear autumn sky — blue at top, warm haze at horizon
+  grad.addColorStop(0, '#4a6a8a');
+  grad.addColorStop(0.25, '#6a8aaa');
+  grad.addColorStop(0.5, '#8aaabb');
+  grad.addColorStop(0.75, '#b0c0c8');
+  grad.addColorStop(1, '#c8c0a8');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 512, 512);
+  // Light wispy clouds
+  for (let i = 0; i < 1500; i++) {
+    const x = Math.random() * 512;
+    const y = Math.random() * 200;
+    const a = Math.random() * 0.06;
+    ctx.fillStyle = `rgba(220,225,230,${a})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 5 + Math.random() * 15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
+// ============================================================
+// KUPLAHALLI (Inflatable Dome)
+// ============================================================
+function createKuplahalliTexture() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const ctx = c.getContext('2d');
+  // White/light-gray base
+  ctx.fillStyle = '#e8e4e0';
+  ctx.fillRect(0, 0, 512, 512);
+  // Diagonal crosshatch creating diamond/quilted pattern
+  ctx.strokeStyle = 'rgba(180,175,170,0.4)';
+  ctx.lineWidth = 1.5;
+  const spacing = 24;
+  for (let i = -512; i < 1024; i += spacing) {
+    ctx.beginPath();
+    ctx.moveTo(i, 0);
+    ctx.lineTo(i + 512, 512);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(i + 512, 0);
+    ctx.lineTo(i, 512);
+    ctx.stroke();
+  }
+  // Subtle seam lines (horizontal)
+  ctx.strokeStyle = 'rgba(160,155,150,0.3)';
+  ctx.lineWidth = 2;
+  for (let y = 0; y < 512; y += 64) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(512, y);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(4, 4);
+  return tex;
+}
+
+function createKuplahalli() {
+  const kuplaGroup = new THREE.Group();
+  const kx = 50, kz = -60;
+  const baseY = getTerrainHeight(kx, kz);
+
+  // Main dome: elongated half-sphere (ellipsoid)
+  const domeGeo = new THREE.SphereGeometry(1, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  const domeMat = new THREE.MeshStandardMaterial({
+    map: createKuplahalliTexture(),
+    roughness: 0.6,
+    metalness: 0.05,
+    color: 0xf0ece8
+  });
+  const dome = new THREE.Mesh(domeGeo, domeMat);
+  dome.scale.set(17.5, 14, 30); // ~35 wide, ~14 tall, ~60 long
+  dome.position.set(kx, baseY, kz);
+  dome.castShadow = true;
+  dome.receiveShadow = true;
+  kuplaGroup.add(dome);
+
+  // Dark rectangular entrance at one end
+  const entranceGeo = new THREE.BoxGeometry(6, 5, 3);
+  const entranceMat = new THREE.MeshStandardMaterial({
+    color: 0x2a2a2a,
+    roughness: 0.9
+  });
+  const entrance = new THREE.Mesh(entranceGeo, entranceMat);
+  entrance.position.set(kx, baseY + 2.5, kz + 31);
+  kuplaGroup.add(entrance);
+
+  // Entrance opening (dark inset)
+  const doorGeo = new THREE.BoxGeometry(3.5, 3.8, 0.5);
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 1 });
+  const door = new THREE.Mesh(doorGeo, doorMat);
+  door.position.set(kx, baseY + 2, kz + 32.6);
+  kuplaGroup.add(door);
+
+  // Metal fence posts around perimeter (dark green)
+  const fencePostGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.5, 6);
+  const fencePostMat = new THREE.MeshStandardMaterial({
+    color: 0x2a5a2a,
+    roughness: 0.4,
+    metalness: 0.7
+  });
+  const fenceRailMat = new THREE.MeshStandardMaterial({
+    color: 0x2a5a2a,
+    roughness: 0.4,
+    metalness: 0.7
+  });
+  const fenceSpacing = 4;
+
+  // Helper: add post and rails between posts
+  function addFenceSection(x1, z1, x2, z2) {
+    const fy1 = getTerrainHeight(x1, z1);
+    const post = new THREE.Mesh(fencePostGeo, fencePostMat);
+    post.position.set(x1, fy1 + 0.75, z1);
+    kuplaGroup.add(post);
+
+    // Horizontal rails to next post
+    if (x2 !== undefined) {
+      const fy2 = getTerrainHeight(x2, z2);
+      const dx = x2 - x1, dz = z2 - z1;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      const midX = (x1 + x2) / 2, midZ = (z1 + z2) / 2;
+      const midY = (fy1 + fy2) / 2;
+      const angle = Math.atan2(dx, dz);
+      for (const rh of [0.3, 0.7]) {
+        const railGeo = new THREE.BoxGeometry(0.04, 0.06, dist);
+        const rail = new THREE.Mesh(railGeo, fenceRailMat);
+        rail.position.set(midX, midY + rh, midZ);
+        rail.rotation.y = angle;
+        kuplaGroup.add(rail);
+      }
+    }
+  }
+
+  // Posts along both long sides with rails
+  for (const side of [-1, 1]) {
+    const prevPosts = [];
+    for (let fz = -28; fz <= 28; fz += fenceSpacing) {
+      const fx = kx + side * 19;
+      prevPosts.push({ x: fx, z: kz + fz });
+    }
+    for (let i = 0; i < prevPosts.length; i++) {
+      const p = prevPosts[i];
+      const next = i < prevPosts.length - 1 ? prevPosts[i + 1] : undefined;
+      addFenceSection(p.x, p.z, next ? next.x : undefined, next ? next.z : undefined);
+    }
+  }
+  // Posts along back end with rails
+  const backPosts = [];
+  for (let fx = kx - 18; fx <= kx + 18; fx += fenceSpacing) {
+    backPosts.push({ x: fx, z: kz - 30 });
+  }
+  for (let i = 0; i < backPosts.length; i++) {
+    const p = backPosts[i];
+    const next = i < backPosts.length - 1 ? backPosts[i + 1] : undefined;
+    addFenceSection(p.x, p.z, next ? next.x : undefined, next ? next.z : undefined);
+  }
+
+  // Light poles (2, at x ± 22 from dome center)
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.6 });
+  const fixtureMat = new THREE.MeshStandardMaterial({ color: 0x666655, roughness: 0.6, emissive: 0x444430, emissiveIntensity: 0.5 });
+  for (const side of [-1, 1]) {
+    const px = kx + side * 22;
+    const pz = kz;
+    const py = getTerrainHeight(px, pz);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 8, 6), poleMat);
+    shaft.position.set(px, py + 4, pz);
+    shaft.castShadow = true;
+    kuplaGroup.add(shaft);
+
+    const fixture = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.15, 0.3), fixtureMat);
+    fixture.position.set(px, py + 8.1, pz);
+    kuplaGroup.add(fixture);
+  }
+
+  scene.add(kuplaGroup);
+}
+
+// ============================================================
+// SCENE SETUP
+// ============================================================
+function initScene() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x7a9ab8);
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera.position.copy(PLAYER_POS);
+
+  renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.9;
+  document.body.appendChild(renderer.domElement);
+
+  clock = new THREE.Clock();
+
+  // Lighting
+  const hemiLight = new THREE.HemisphereLight(0xb0bfc5, 0x6a5a3a, 0.8);
+  scene.add(hemiLight);
+
+  const dirLight = new THREE.DirectionalLight(0xd4b888, 0.7);
+  dirLight.position.set(-20, 30, -10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.set(1024, 1024);
+  dirLight.shadow.camera.near = 0.5;
+  dirLight.shadow.camera.far = 120;
+  dirLight.shadow.camera.left = -60;
+  dirLight.shadow.camera.right = 60;
+  dirLight.shadow.camera.top = 60;
+  dirLight.shadow.camera.bottom = -60;
+  scene.add(dirLight);
+
+  const ambLight = new THREE.AmbientLight(0x404850, 0.3);
+  scene.add(ambLight);
+
+  // Low-angle golden fill light (warm autumn atmosphere)
+  const warmFill = new THREE.DirectionalLight(0xdda040, 0.25);
+  warmFill.position.set(30, 8, -5);
+  scene.add(warmFill);
+
+  // Sky dome
+  const skyGeo = new THREE.SphereGeometry(400, 16, 16);
+  const skyMat = new THREE.MeshBasicMaterial({
+    map: createSkyTexture(),
+    side: THREE.BackSide,
+    fog: false
+  });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
+
+  // Ground
+  createGround();
+
+  // Football field behind sector
+  createFootballField();
+
+  // Parking lot near kuplahalli
+  createParkingLot();
+
+  // Ground scatter rocks
+  createGroundRocks();
+
+  // Trees
+  createForest();
+
+  // Birch trees (golden autumn mix)
+  createBirchTrees();
+
+  // Sector pines and obstacle
+  createSectorTrees();
+
+  // Pine root foul line
+  createFoulLine();
+
+  // Throwing boulder
+  createThrowingBoulder();
+
+  // NPCs
+  createNPCs();
+
+  // Falling leaves
+  createLeafParticles();
+
+  // Wind particles
+  createWindParticles();
+
+  // Bird particles
+  createBirdParticles();
+
+  // Kuplahalli
+  createKuplahalli();
+
+  // Player arm
+  createPlayerArm();
+
+  // Create javelin template
+  createJavelinTemplate();
+}
+
+// ============================================================
+// GROUND
+// ============================================================
+function createGround() {
+  const geo = new THREE.PlaneGeometry(300, 300, 180, 180);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getY(i); // before rotation
+    pos.setZ(i, getTerrainHeight(x, z));
+  }
+  geo.computeVertexNormals();
+  geo.rotateX(-Math.PI / 2);
+
+  const mat = new THREE.MeshStandardMaterial({
+    map: createLeafTexture(),
+    roughness: 0.95,
+    metalness: 0.0,
+    color: 0x8a6a4a
+  });
+
+  const ground = new THREE.Mesh(geo, mat);
+  ground.receiveShadow = true;
+  scene.add(ground);
+}
+
+// ============================================================
+// FOOTBALL FIELD & PARKING LOT
+// ============================================================
+function createFootballField() {
+  // Green football field CROSSWISE (long axis = X), visible through trees
+  // 105m long (X) x 68m wide (Z), centered behind the forest
+  const fieldGeo = new THREE.PlaneGeometry(105, 68);
+  fieldGeo.rotateX(-Math.PI / 2);
+  const fieldMat = new THREE.MeshStandardMaterial({
+    color: 0x3a7a2a,
+    roughness: 0.9,
+    metalness: 0.0
+  });
+  const field = new THREE.Mesh(fieldGeo, fieldMat);
+  const fieldZ = -118; // near edge at z=-84, far edge at z=-152
+  const fieldY = getTerrainHeight(0, fieldZ) + 0.1;
+  field.position.set(0, fieldY, fieldZ);
+  field.receiveShadow = true;
+  scene.add(field);
+
+  // White line markings (long sides along X, short sides along Z)
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8 });
+  const lineW = 0.15;
+
+  const lines = [
+    // Long sides (along X axis)
+    { w: 105, d: lineW, x: 0, z: -34 },
+    { w: 105, d: lineW, x: 0, z: 34 },
+    // Short sides (along Z axis)
+    { w: lineW, d: 68, x: -52.5, z: 0 },
+    { w: lineW, d: 68, x: 52.5, z: 0 },
+    // Center line
+    { w: lineW, d: 68, x: 0, z: 0 },
+  ];
+  lines.forEach(l => {
+    const geo = new THREE.PlaneGeometry(l.w, l.d);
+    geo.rotateX(-Math.PI / 2);
+    const line = new THREE.Mesh(geo, lineMat);
+    line.position.set(l.x, 0.02, l.z);
+    field.add(line);
+  });
+
+  // Center circle
+  const circleGeo = new THREE.RingGeometry(9, 9.15, 32);
+  circleGeo.rotateX(-Math.PI / 2);
+  const circle = new THREE.Mesh(circleGeo, lineMat);
+  circle.position.y = 0.02;
+  field.add(circle);
+
+  // Goal areas at each SHORT end (left/right in X)
+  for (const endX of [-52.5, 52.5]) {
+    const dir = endX > 0 ? -1 : 1;
+    const paLines = [
+      { w: lineW, d: 40, x: endX + dir * 16.5, z: 0 },
+      { w: 16.5, d: lineW, x: endX + dir * 8.25, z: -20 },
+      { w: 16.5, d: lineW, x: endX + dir * 8.25, z: 20 },
+    ];
+    paLines.forEach(l => {
+      const geo = new THREE.PlaneGeometry(l.w, l.d);
+      geo.rotateX(-Math.PI / 2);
+      const line = new THREE.Mesh(geo, lineMat);
+      line.position.set(l.x, 0.02, l.z);
+      field.add(line);
+    });
+  }
+
+  // Small building/clubhouse on the right side (visible through trees)
+  const buildingGroup = new THREE.Group();
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.9 });
+  const roofMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.85 });
+
+  // Walls
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(8, 4, 5), wallMat);
+  walls.position.y = 2;
+  walls.castShadow = true;
+  buildingGroup.add(walls);
+
+  // Roof (slightly wider, sloped look via squashed box)
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(9, 0.8, 6), roofMat);
+  roof.position.y = 4.2;
+  roof.castShadow = true;
+  buildingGroup.add(roof);
+
+  // Door
+  const doorMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.9 });
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.1), doorMat);
+  door.position.set(0, 1.1, 2.51);
+  buildingGroup.add(door);
+
+  // Window
+  const winMat = new THREE.MeshStandardMaterial({ color: 0x7aaabb, roughness: 0.3, metalness: 0.2 });
+  const win = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 0.1), winMat);
+  win.position.set(2.5, 2.5, 2.51);
+  buildingGroup.add(win);
+
+  const bx = 35, bz = -85;
+  const by = getTerrainHeight(bx, bz);
+  buildingGroup.position.set(bx, by, bz);
+  buildingGroup.rotation.y = 0.3; // Slight angle
+  scene.add(buildingGroup);
+}
+
+function createParkingLot() {
+  // Gray asphalt parking lot to the right, near kuplahalli
+  const lotGeo = new THREE.PlaneGeometry(40, 50);
+  lotGeo.rotateX(-Math.PI / 2);
+  const lotMat = new THREE.MeshStandardMaterial({
+    color: 0x555560,
+    roughness: 0.95,
+    metalness: 0.0
+  });
+  const lot = new THREE.Mesh(lotGeo, lotMat);
+  const lotZ = -108;
+  const lotY = getTerrainHeight(55, lotZ) + 0.1;
+  lot.position.set(55, lotY, lotZ);
+  lot.receiveShadow = true;
+  scene.add(lot);
+
+  // Parking space lines
+  const lineMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.8 });
+  for (let i = 0; i < 8; i++) {
+    const lineGeo = new THREE.PlaneGeometry(0.1, 5);
+    lineGeo.rotateX(-Math.PI / 2);
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.position.set(-15 + i * 3, 0.02, -10);
+    lot.add(line);
+  }
+  for (let i = 0; i < 8; i++) {
+    const lineGeo = new THREE.PlaneGeometry(0.1, 5);
+    lineGeo.rotateX(-Math.PI / 2);
+    const line = new THREE.Mesh(lineGeo, lineMat);
+    line.position.set(-15 + i * 3, 0.02, 10);
+    lot.add(line);
+  }
+
+  // A few parked cars (simple boxes)
+  const carColors = [0x8a2020, 0x2a2a6a, 0x555555, 0x1a4a1a, 0x6a6a6a];
+  const carPositions = [
+    { x: -12, z: -10 }, { x: -6, z: -10 }, { x: 3, z: -10 },
+    { x: -9, z: 10 }, { x: 0, z: 10 }, { x: 6, z: 10 },
+  ];
+  carPositions.forEach((p, i) => {
+    const carGeo = new THREE.BoxGeometry(2.2, 1.3, 4.2);
+    const carMat = new THREE.MeshStandardMaterial({
+      color: carColors[i % carColors.length],
+      roughness: 0.6,
+      metalness: 0.2
+    });
+    const car = new THREE.Mesh(carGeo, carMat);
+    car.position.set(p.x, 0.65, p.z);
+    car.castShadow = true;
+    lot.add(car);
+
+    // Windshield
+    const glassGeo = new THREE.BoxGeometry(1.8, 0.6, 0.1);
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0x8ab8cc, roughness: 0.2, metalness: 0.3
+    });
+    const glass = new THREE.Mesh(glassGeo, glassMat);
+    glass.position.set(p.x, 1.1, p.z - 1.2);
+    lot.add(glass);
+  });
+}
+
+// ============================================================
+// TREE CREATION
+// ============================================================
+function createPineTree(height, trunkRadius, crownScale) {
+  const group = new THREE.Group();
+
+  // Trunk
+  const trunkGeo = new THREE.CylinderGeometry(trunkRadius * 0.6, trunkRadius, height, 8);
+  const trunkMat = new THREE.MeshStandardMaterial({
+    map: createBarkTexture(),
+    roughness: 0.9,
+    color: 0x8a5a3a
+  });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = height / 2;
+  trunk.castShadow = true;
+  group.add(trunk);
+
+  // Crown layers (sparse scots pine canopy)
+  const crownMat = new THREE.MeshStandardMaterial({
+    color: 0x2a5a2a,
+    roughness: 0.8,
+    transparent: true,
+    opacity: 0.9
+  });
+
+  const layers = 2 + Math.floor(Math.random() * 2);
+  for (let i = 0; i < layers; i++) {
+    const y = height * (0.78 + i * 0.08);
+    const r = crownScale * (1.2 - i * 0.2) + Math.random() * 0.3;
+    const coneGeo = new THREE.ConeGeometry(r, r * 0.55, 7);
+    const cone = new THREE.Mesh(coneGeo, crownMat);
+    cone.position.y = y;
+    cone.castShadow = true;
+    group.add(cone);
+  }
+
+  return group;
+}
+
+// ============================================================
+// INSTANCED FOREST
+// ============================================================
+function createForest() {
+  const barkTex = createBarkTexture();
+
+  // Trunk instanced mesh
+  const trunkGeo = new THREE.CylinderGeometry(0.06, 0.18, 14, 6);
+  const trunkMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      windStr: { value: 1.0 },
+      barkColor: { value: new THREE.Color(0x8a5a3a) }
+    },
+    vertexShader: `
+      uniform float time;
+      uniform float windStr;
+      varying vec3 vWorldPos;
+      varying float vHeight;
+      void main() {
+        vHeight = position.y;
+
+        // Apply instance transform
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        vec4 worldPos = modelMatrix * instancePos;
+
+        // Tree sway
+        float sway = sin(time * 1.5 + worldPos.x * 0.5 + worldPos.z * 0.3) * 0.03;
+        sway += sin(time * 2.3 + worldPos.x * 0.8) * 0.015;
+        float swayAmount = max(0.0, (instancePos.y - 2.0) / 10.0);
+        worldPos.x += sway * swayAmount * windStr;
+        worldPos.z += sway * 0.5 * swayAmount * windStr;
+
+        vWorldPos = worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 barkColor;
+      varying float vHeight;
+      void main() {
+        vec3 col = barkColor;
+        col += vec3(vHeight * 0.01, -vHeight * 0.005, -vHeight * 0.01);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  const trunkCount = 800;
+  treesInstanced = new THREE.InstancedMesh(trunkGeo, trunkMat, trunkCount);
+  treesInstanced.castShadow = true;
+
+  // Crown instanced mesh
+  const crownGeo = new THREE.ConeGeometry(2.2, 1.2, 6);
+  const crownMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      windStr: { value: 1.0 },
+      leafColor: { value: new THREE.Color(0x2a5a2a) }
+    },
+    vertexShader: `
+      uniform float time;
+      uniform float windStr;
+      varying vec3 vWorldPos;
+      varying vec3 vNormal;
+      void main() {
+        // Apply instance transform
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        vec4 worldPos = modelMatrix * instancePos;
+
+        float sway = sin(time * 1.5 + worldPos.x * 0.5 + worldPos.z * 0.3) * 0.06;
+        sway += sin(time * 2.3 + worldPos.x * 0.8) * 0.03;
+        float swayAmount = max(0.0, instancePos.y) / 2.0;
+        worldPos.x += sway * swayAmount * windStr;
+        worldPos.z += sway * 0.5 * swayAmount * windStr;
+
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 leafColor;
+      varying vec3 vNormal;
+      void main() {
+        vec3 col = leafColor;
+        vec3 lightDir = normalize(vec3(-0.5, 1.0, -0.3));
+        float diff = max(dot(vNormal, lightDir), 0.0) * 0.5 + 0.5;
+        col *= diff;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  // Place trees (2 crowns per tree)
+  const crownCount = trunkCount * 2;
+  const crownInstanced = new THREE.InstancedMesh(crownGeo, crownMat, crownCount);
+
+  const dummy = new THREE.Object3D();
+  forestUsedPositions = [];
+
+  // Keep clear zone around player and throwing lane
+  function isValidTreePos(x, z, minSpacing) {
+    // Clear the throwing lane
+    if (Math.abs(x) < 4 && z > -80 && z < 5) return false;
+    // Don't block player area
+    if (Math.abs(x) < 3 && Math.abs(z) < 4) return false;
+    // Don't overlap sector/obstacle trees
+    if (Math.abs(x - (-10)) < 3 && Math.abs(z - (-65)) < 3) return false;
+    if (Math.abs(x - 10) < 3 && Math.abs(z - (-65)) < 3) return false;
+    if (Math.abs(x - 0.5) < 3 && Math.abs(z - (-35)) < 3) return false;
+    // Kuplahalli exclusion zone
+    if (x > 25 && x < 75 && z > -95 && z < -25) return false;
+    // Football field surface only (crosswise at z=-118, ±52.5 x, ±34 z)
+    if (Math.abs(x) < 55 && z < -84 && z > -152) return false;
+    // Small building near field
+    if (x > 30 && x < 40 && z > -90 && z < -80) return false;
+    // Parking lot surface only
+    if (x > 33 && x < 78 && z < -80 && z > -132) return false;
+    // Check spacing
+    for (const p of forestUsedPositions) {
+      if (Math.hypot(x - p.x, z - p.z) < minSpacing) return false;
+    }
+    return true;
+  }
+
+  function placeTree(x, z) {
+    const h = 14 + Math.random() * 6;
+    const scale = 0.8 + Math.random() * 0.4;
+    const terrainY = getTerrainHeight(x, z);
+
+    dummy.position.set(x, terrainY + h / 2, z);
+    dummy.scale.set(scale, h / 14, scale);
+    dummy.updateMatrix();
+    treesInstanced.setMatrixAt(placed, dummy.matrix);
+
+    // Crown layers
+    for (let c = 0; c < 2; c++) {
+      const cy = terrainY + h * (0.78 + c * 0.09);
+      const cs = scale * (1.0 - c * 0.2);
+      dummy.position.set(x, cy, z);
+      dummy.scale.set(cs, cs, cs);
+      dummy.updateMatrix();
+      if (placed * 2 + c < crownCount) {
+        crownInstanced.setMatrixAt(placed * 2 + c, dummy.matrix);
+      }
+    }
+
+    forestUsedPositions.push({ x, z });
+    placed++;
+  }
+
+  let placed = 0;
+  let attempts = 0;
+
+  // Phase 1: Dense corridor trees on left/right sides (~500)
+  const corridorTarget = 500;
+  while (placed < corridorTarget && attempts < 10000) {
+    attempts++;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const x = side * (5 + Math.random() * 45);
+    const z = 10 - Math.random() * 95; // z from +10 to -85
+
+    if (!isValidTreePos(x, z, 2)) continue;
+    placeTree(x, z);
+  }
+
+  // Phase 2: Background radial fill (~300)
+  while (placed < trunkCount && attempts < 18000) {
+    attempts++;
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 8 + Math.random() * 85;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist - 20;
+
+    if (!isValidTreePos(x, z, 3)) continue;
+    placeTree(x, z);
+  }
+
+  treesInstanced.count = placed;
+  crownInstanced.count = placed * 2;
+  treesInstanced.instanceMatrix.needsUpdate = true;
+  crownInstanced.instanceMatrix.needsUpdate = true;
+
+  scene.add(treesInstanced);
+  scene.add(crownInstanced);
+
+  // Store crown instanced for updates
+  treesInstanced.userData.crownMesh = crownInstanced;
+}
+
+// ============================================================
+// BIRCH TREES (Golden autumn mix)
+// ============================================================
+function createBirchTrees() {
+  const birchCount = 120;
+
+  // Trunk geometry & shader (white/cream bark with dark bands)
+  const trunkGeo = new THREE.CylinderGeometry(0.05, 0.1, 12, 6);
+  const trunkMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      windStr: { value: 1.0 },
+      barkColor: { value: new THREE.Color(0xd4ccbb) }
+    },
+    vertexShader: `
+      uniform float time;
+      uniform float windStr;
+      varying vec3 vWorldPos;
+      varying float vHeight;
+      void main() {
+        vHeight = position.y;
+        // Apply instance transform
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        vec4 worldPos = modelMatrix * instancePos;
+        float sway = sin(time * 1.8 + worldPos.x * 0.6 + worldPos.z * 0.4) * 0.04;
+        sway += sin(time * 2.5 + worldPos.x * 0.9) * 0.02;
+        float swayAmount = max(0.0, (instancePos.y - 2.0) / 10.0);
+        worldPos.x += sway * swayAmount * windStr;
+        worldPos.z += sway * 0.5 * swayAmount * windStr;
+        vWorldPos = worldPos.xyz;
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 barkColor;
+      varying float vHeight;
+      void main() {
+        vec3 col = barkColor;
+        // Birch bark dark horizontal bands
+        float band = step(0.85, fract(vHeight * 2.5 + sin(vHeight * 8.0) * 0.1));
+        col = mix(col, vec3(0.25, 0.22, 0.18), band * 0.6);
+        col += vec3(vHeight * 0.005, -vHeight * 0.003, -vHeight * 0.005);
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  birchInstanced = new THREE.InstancedMesh(trunkGeo, trunkMat, birchCount);
+  birchInstanced.castShadow = true;
+
+  // Crown geometry & shader (round golden canopy)
+  const crownGeo = new THREE.SphereGeometry(1.0, 6, 5);
+  const crownMat = new THREE.ShaderMaterial({
+    uniforms: {
+      time: { value: 0 },
+      windStr: { value: 1.0 },
+      leafColor: { value: new THREE.Color(0xb8922a) }
+    },
+    vertexShader: `
+      uniform float time;
+      uniform float windStr;
+      varying vec3 vWorldPos;
+      varying vec3 vNormal;
+      void main() {
+        // Apply instance transform
+        vec4 instancePos = instanceMatrix * vec4(position, 1.0);
+        vec4 worldPos = modelMatrix * instancePos;
+        float sway = sin(time * 1.8 + worldPos.x * 0.6 + worldPos.z * 0.4) * 0.08;
+        sway += sin(time * 2.5 + worldPos.x * 0.9) * 0.04;
+        float swayAmount = max(0.0, instancePos.y) / 1.5;
+        worldPos.x += sway * swayAmount * windStr;
+        worldPos.z += sway * 0.5 * swayAmount * windStr;
+        vWorldPos = worldPos.xyz;
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * viewMatrix * worldPos;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 leafColor;
+      varying vec3 vNormal;
+      void main() {
+        vec3 col = leafColor;
+        vec3 lightDir = normalize(vec3(-0.5, 1.0, -0.3));
+        float diff = max(dot(vNormal, lightDir), 0.0) * 0.5 + 0.5;
+        col *= diff;
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `
+  });
+
+  const crownCount = birchCount;
+  const crownInstanced = new THREE.InstancedMesh(crownGeo, crownMat, crownCount);
+
+  const dummy = new THREE.Object3D();
+  let placed = 0;
+  let attempts = 0;
+
+  while (placed < birchCount && attempts < 3000) {
+    attempts++;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const x = side * (15 + Math.random() * 35);
+    const z = -10 - Math.random() * 70; // z from -10 to -80
+
+    // Check spacing against existing forest trees and other birches
+    let tooClose = false;
+    for (const p of forestUsedPositions) {
+      if (Math.hypot(x - p.x, z - p.z) < 4) { tooClose = true; break; }
+    }
+    if (tooClose) continue;
+
+    // Avoid throwing lane, player area, kuplahalli
+    if (Math.abs(x) < 4 && z > -80 && z < 5) continue;
+    if (Math.abs(x) < 3 && Math.abs(z) < 4) continue;
+    if (x > 25 && x < 75 && z > -95 && z < -25) continue;
+
+    const h = 8 + Math.random() * 6; // 8-14m
+    const scale = 0.7 + Math.random() * 0.4;
+    const terrainY = getTerrainHeight(x, z);
+
+    // Trunk
+    dummy.position.set(x, terrainY + h / 2, z);
+    dummy.scale.set(scale, h / 12, scale);
+    dummy.updateMatrix();
+    birchInstanced.setMatrixAt(placed, dummy.matrix);
+
+    // Crown at 60-75% height
+    const crownY = terrainY + h * (0.60 + Math.random() * 0.15);
+    const cs = scale * (1.2 + Math.random() * 0.3);
+    dummy.position.set(x, crownY, z);
+    dummy.scale.set(cs, cs * 0.8, cs);
+    dummy.updateMatrix();
+    crownInstanced.setMatrixAt(placed, dummy.matrix);
+
+    forestUsedPositions.push({ x, z });
+    placed++;
+  }
+
+  birchInstanced.count = placed;
+  crownInstanced.count = placed;
+  birchInstanced.instanceMatrix.needsUpdate = true;
+  crownInstanced.instanceMatrix.needsUpdate = true;
+
+  scene.add(birchInstanced);
+  scene.add(crownInstanced);
+
+  birchInstanced.userData.crownMesh = crownInstanced;
+}
+
+// ============================================================
+// SECTOR TREES + OBSTACLE
+// ============================================================
+function createSectorTrees() {
+  // Left sector pine
+  sectorLeftPine = createPineTree(16, 0.3, 2.5);
+  sectorLeftPine.position.set(-10, getTerrainHeight(-10, -65), -65);
+  scene.add(sectorLeftPine);
+
+  // Right sector pine
+  sectorRightPine = createPineTree(16, 0.3, 2.5);
+  sectorRightPine.position.set(10, getTerrainHeight(10, -65), -65);
+  scene.add(sectorRightPine);
+
+  // Obstacle pine in the middle - slightly different (birch-like)
+  const obstGroup = new THREE.Group();
+
+  // White-ish trunk (birch)
+  const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 14, 8);
+  const trunkMat = new THREE.MeshStandardMaterial({
+    color: 0xccbbaa,
+    roughness: 0.7
+  });
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+  trunk.position.y = 7;
+  trunk.castShadow = true;
+  obstGroup.add(trunk);
+
+  // Some tape/marking
+  const tapeGeo = new THREE.CylinderGeometry(0.27, 0.27, 0.3, 8);
+  const tapeMat = new THREE.MeshStandardMaterial({ color: 0xff4444, roughness: 0.5 });
+  const tape = new THREE.Mesh(tapeGeo, tapeMat);
+  tape.position.y = 3;
+  obstGroup.add(tape);
+
+  // Crown
+  const crownMat = new THREE.MeshStandardMaterial({
+    color: 0x4a7a3a, roughness: 0.8
+  });
+  for (let i = 0; i < 3; i++) {
+    const coneGeo = new THREE.ConeGeometry(1.8 - i * 0.3, 2.5, 7);
+    const cone = new THREE.Mesh(coneGeo, crownMat);
+    cone.position.y = 10 + i * 2;
+    cone.castShadow = true;
+    obstGroup.add(cone);
+  }
+
+  obstGroup.position.set(0.5, getTerrainHeight(0.5, -35), -35);
+  obstaclePine = obstGroup;
+  obstaclePine.userData.radius = 0.8; // collision radius
+  scene.add(obstaclePine);
+}
+
+// ============================================================
+// FOUL LINE (Pine Root)
+// ============================================================
+function createFoulLine() {
+  const rootMat = new THREE.MeshStandardMaterial({
+    color: 0x5a3a1a,
+    roughness: 0.95
+  });
+
+  // Main root
+  const th0 = getTerrainHeight(0, 1);
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2, getTerrainHeight(-2, 1) + 0.05, 1),
+    new THREE.Vector3(-1, getTerrainHeight(-1, 0.9) + 0.15, 0.9),
+    new THREE.Vector3(0, th0 + 0.2, 0.85),
+    new THREE.Vector3(1, getTerrainHeight(1, 0.95) + 0.15, 0.95),
+    new THREE.Vector3(2, getTerrainHeight(2, 1) + 0.05, 1),
+  ]);
+  const rootGeo = new THREE.TubeGeometry(curve, 20, 0.08, 6, false);
+  const root = new THREE.Mesh(rootGeo, rootMat);
+  root.castShadow = true;
+  scene.add(root);
+
+  // Branch roots
+  for (let i = 0; i < 4; i++) {
+    const sx = -1.5 + i;
+    const bz1 = 0.5 + Math.random() * 0.3;
+    const bz2 = 0.2 + Math.random() * 0.2;
+    const curve2 = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(sx, getTerrainHeight(sx, 0.9) + 0.12, 0.9),
+      new THREE.Vector3(sx + 0.3, getTerrainHeight(sx + 0.3, bz1) + 0.08, bz1),
+      new THREE.Vector3(sx + 0.5, getTerrainHeight(sx + 0.5, bz2) + 0.02, bz2),
+    ]);
+    const brGeo = new THREE.TubeGeometry(curve2, 8, 0.04, 5, false);
+    scene.add(new THREE.Mesh(brGeo, rootMat));
+  }
+}
+
+// ============================================================
+// THROWING BOULDER
+// ============================================================
+function createThrowingBoulder() {
+  const boulderGeo = new THREE.DodecahedronGeometry(1.2, 1);
+  // Displace vertices for irregular shape
+  const pos = boulderGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const disp = Math.sin(x * 3.1) * 0.15 + Math.sin(y * 2.7 + z * 1.8) * 0.1 + Math.sin(z * 4.2) * 0.08;
+    pos.setX(i, x + disp * x * 0.3);
+    pos.setY(i, y * 0.7 + disp * y * 0.2); // Y-squash for flattened look
+    pos.setZ(i, z + disp * z * 0.3);
+  }
+  boulderGeo.computeVertexNormals();
+
+  const boulderMat = new THREE.MeshStandardMaterial({
+    color: 0x888880,
+    roughness: 0.92,
+    metalness: 0.05
+  });
+
+  const boulder = new THREE.Mesh(boulderGeo, boulderMat);
+  const ty = getTerrainHeight(0, 0.5);
+  boulder.position.set(0, ty + 0.3, 0.5);
+  boulder.rotation.set(0.15, 0.4, 0.1); // Slight random tilt
+  boulder.castShadow = true;
+  boulder.receiveShadow = true;
+  scene.add(boulder);
+}
+
+// ============================================================
+// GROUND ROCKS
+// ============================================================
+function createGroundRocks() {
+  const rockGeo = new THREE.DodecahedronGeometry(0.5, 0);
+  // Displace vertices for natural look
+  const pos = rockGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const disp = Math.sin(x * 5.3) * 0.12 + Math.sin(y * 3.7 + z * 2.1) * 0.08;
+    pos.setX(i, x + disp * 0.3);
+    pos.setY(i, y * 0.7 + disp * 0.2); // Y-squash
+    pos.setZ(i, z + disp * 0.3);
+  }
+  rockGeo.computeVertexNormals();
+
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0x7a7a72,
+    roughness: 0.95,
+    metalness: 0.0
+  });
+
+  const rockCount = 40;
+  const rockMesh = new THREE.InstancedMesh(rockGeo, rockMat, rockCount);
+  rockMesh.castShadow = true;
+  rockMesh.receiveShadow = true;
+
+  const dummy = new THREE.Object3D();
+  let placed = 0;
+
+  for (let i = 0; i < 200 && placed < rockCount; i++) {
+    const x = (Math.random() - 0.5) * 80;
+    const z = -Math.random() * 80;
+
+    // Avoid throwing lane
+    if (Math.abs(x) < 4 && z > -80 && z < 5) continue;
+    // Avoid player area
+    if (Math.abs(x) < 3 && Math.abs(z) < 4) continue;
+    // Avoid kuplahalli area
+    if (x > 25 && x < 75 && z > -95 && z < -25) continue;
+
+    const scale = 0.15 + Math.random() * 0.45;
+    const ty = getTerrainHeight(x, z);
+    dummy.position.set(x, ty + scale * 0.2, z);
+    dummy.scale.set(scale, scale, scale);
+    dummy.rotation.set(Math.random() * 0.5, Math.random() * Math.PI * 2, Math.random() * 0.5);
+    dummy.updateMatrix();
+    rockMesh.setMatrixAt(placed, dummy.matrix);
+    placed++;
+  }
+
+  rockMesh.count = placed;
+  rockMesh.instanceMatrix.needsUpdate = true;
+  scene.add(rockMesh);
+}
+
+// ============================================================
+// NPC CREATION
+// ============================================================
+function createHumanoid(color, headColor, options = {}) {
+  const group = new THREE.Group();
+
+  // Body
+  const bodyGeo = new THREE.CylinderGeometry(0.2, 0.25, 0.8, 6);
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.1;
+  group.add(body);
+
+  // Track jacket stripes
+  if (options.stripe !== false && options.stripeColor) {
+    const stripeMat = new THREE.MeshStandardMaterial({ color: options.stripeColor, roughness: 0.7 });
+    const stripeGeo = new THREE.CylinderGeometry(0.215, 0.215, 0.04, 6);
+    const stripe1 = new THREE.Mesh(stripeGeo, stripeMat);
+    stripe1.position.y = 1.2;
+    group.add(stripe1);
+    const stripe2 = new THREE.Mesh(stripeGeo, stripeMat);
+    stripe2.position.y = 1.05;
+    group.add(stripe2);
+  }
+
+  // Head
+  const headGeo = new THREE.SphereGeometry(0.15, 8, 6);
+  const headMat = new THREE.MeshStandardMaterial({ color: headColor || 0xd4a574, roughness: 0.7 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 1.65;
+  group.add(head);
+
+  // Beanie
+  if (options.beanie !== false && options.beanieColor !== undefined) {
+    const beanieGeo = new THREE.SphereGeometry(0.16, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const beanieMat = new THREE.MeshStandardMaterial({ color: options.beanieColor, roughness: 0.85 });
+    const beanie = new THREE.Mesh(beanieGeo, beanieMat);
+    beanie.position.y = 1.68;
+    group.add(beanie);
+  }
+
+  // Legs (dark pants)
+  const legGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.7, 5);
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x1a1a2a, roughness: 0.8 });
+  const legL = new THREE.Mesh(legGeo, legMat);
+  legL.position.set(-0.1, 0.35, 0);
+  group.add(legL);
+  const legR = new THREE.Mesh(legGeo, legMat);
+  legR.position.set(0.1, 0.35, 0);
+  group.add(legR);
+
+  // Arms
+  const armGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.6, 5);
+  const armL = new THREE.Mesh(armGeo, bodyMat);
+  armL.position.set(-0.3, 1.1, 0);
+  armL.rotation.z = 0.15;
+  group.add(armL);
+  const armR = new THREE.Mesh(armGeo, bodyMat);
+  armR.position.set(0.3, 1.1, 0);
+  armR.rotation.z = -0.15;
+  group.add(armR);
+
+  group.userData.armL = armL;
+  group.userData.armR = armR;
+  group.userData.legL = legL;
+  group.userData.legR = legR;
+  group.userData.animPhase = Math.random() * Math.PI * 2;
+  group.userData.reaction = 'idle';
+  group.userData.reactionTimer = 0;
+
+  group.castShadow = true;
+  return group;
+}
+
+function createNPCs() {
+  const darkPalette = [0x1a1a1a, 0x1a1a2a, 0x2a2a2a, 0x222222, 0x1a2a1a, 0x0a0a1a, 0x2a2a3a];
+  const beanieColors = [0x1a1a1a, 0x2a2a2a, 0x1a1a3a, 0x3a1a1a, 0x1a2a1a, 0x2a1a2a];
+
+  const npcDefs = [
+    { name: 'Coach Matti', color: 0x2a3a2a, opts: { beanieColor: 0x2a2a2a }, finalX: -3, finalZ: 0, finalRotY: 0.5 },
+    { name: 'Spectator', color: darkPalette[0], opts: { beanieColor: beanieColors[0], stripeColor: 0xdddddd }, finalX: 4, finalZ: -0.5 },
+    { name: 'Spectator', color: darkPalette[1], opts: { beanieColor: beanieColors[1] }, finalX: 4.6, finalZ: -1.5 },
+    { name: 'Spectator', color: darkPalette[2], opts: { beanieColor: beanieColors[2], stripeColor: 0xdddddd }, finalX: 5.2, finalZ: -2.5 },
+    { name: 'Spectator', color: darkPalette[3], opts: { beanieColor: beanieColors[3] }, finalX: 4.3, finalZ: -3.2 },
+    { name: 'Spectator', color: darkPalette[4], opts: { stripeColor: 0xcccccc }, finalX: 5.5, finalZ: -3.8 },
+    { name: 'Spectator', color: darkPalette[5], opts: { beanieColor: beanieColors[4], stripeColor: 0xdddddd }, finalX: -3.5, finalZ: -1.5 },
+    { name: 'Spectator', color: darkPalette[6], opts: { beanieColor: beanieColors[5] }, finalX: -4.2, finalZ: -2.8 },
+    { name: 'Spectator', color: darkPalette[0], opts: { beanieColor: beanieColors[0] }, finalX: -5.0, finalZ: -3.8 },
+    { name: 'Spectator', color: darkPalette[1], opts: { beanieColor: beanieColors[1], stripeColor: 0xdddddd }, finalX: -4.6, finalZ: -5.0 },
+    { name: 'Spectator', color: darkPalette[2], opts: { beanieColor: beanieColors[2] }, finalX: 5.8, finalZ: -8 },
+    { name: 'Spectator', color: darkPalette[3], opts: { beanieColor: beanieColors[3], stripeColor: 0xcccccc }, finalX: 6.5, finalZ: -9 },
+    { name: 'Spectator', color: darkPalette[4], opts: { beanieColor: beanieColors[4] }, finalX: 6.8, finalZ: -10 },
+    { name: 'Spectator', color: darkPalette[5], opts: { beanieColor: beanieColors[5], stripeColor: 0xdddddd }, finalX: -6, finalZ: -8 },
+    { name: 'Spectator', color: darkPalette[6], opts: { beanieColor: beanieColors[0] }, finalX: 3.5, finalZ: -6 },
+    { name: 'Spectator', color: darkPalette[0], opts: { beanieColor: beanieColors[1], stripeColor: 0xcccccc }, finalX: -2.5, finalZ: -6.5 },
+    { name: 'Jukka', color: 0x2a1a1a, opts: { beanieColor: 0x1a1a1a, stripeColor: 0xdddddd }, finalX: -7, finalZ: -20, finalRotY: 1 },
+    { name: 'Heikki', color: 0x1a2a3a, opts: { beanieColor: 0x2a2a3a }, finalX: 7, finalZ: -25, finalRotY: -1 },
+  ];
+
+  const count = npcDefs.length;
+  for (let i = 0; i < count; i++) {
+    const def = npcDefs[i];
+    const npc = createHumanoid(def.color, undefined, def.opts || {});
+
+    // Gathered position: semicircle in front of player
+    let gx, gz;
+    if (def.name === 'Coach Matti') {
+      gx = 0;
+      gz = -2.5;
+    } else {
+      const angle = -Math.PI / 2 + (Math.PI * (i / (count - 1)));
+      const radius = 2.5 + (i % 2) * 0.8;
+      gx = Math.sin(angle) * radius;
+      gz = -1 + Math.cos(angle) * radius * -1;
+    }
+
+    const gy = getTerrainHeight(gx, gz);
+    npc.position.set(gx, gy, gz);
+    npc.rotation.y = Math.atan2(-gx, 1);
+    npc.userData.name = def.name;
+    npc.userData.baseY = gy;
+
+    npc.userData.gatheredPos = { x: gx, z: gz };
+    npc.userData.finalPos = { x: def.finalX, z: def.finalZ };
+    npc.userData.finalRotY = def.finalRotY !== undefined ? def.finalRotY : Math.atan2(-def.finalX, -def.finalZ - 10);
+
+    scene.add(npc);
+    npcMeshes.push(npc);
+  }
+}
+
+// ============================================================
+// PARTICLES - FALLING LEAVES
+// ============================================================
+function createLeafParticles() {
+  const count = 200;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const velocities = [];
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 80;
+    positions[i * 3 + 1] = 5 + Math.random() * 15;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 20;
+    velocities.push({
+      x: (Math.random() - 0.5) * 0.5,
+      y: -0.3 - Math.random() * 0.5,
+      z: (Math.random() - 0.5) * 0.5,
+      phase: Math.random() * Math.PI * 2,
+      speed: 0.5 + Math.random() * 1.5
+    });
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.15,
+    color: 0xCC7722,
+    transparent: true,
+    opacity: 0.8,
+    sizeAttenuation: true
+  });
+
+  leafParticles = new THREE.Points(geo, mat);
+  leafParticles.userData.velocities = velocities;
+  scene.add(leafParticles);
+}
+
+// ============================================================
+// WIND PARTICLES
+// ============================================================
+function createWindParticles() {
+  const count = 100;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 60;
+    positions[i * 3 + 1] = 0.2 + Math.random() * 2;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 60 - 20;
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.06,
+    color: 0xaa8855,
+    transparent: true,
+    opacity: 0.4,
+    sizeAttenuation: true
+  });
+
+  windParticles = new THREE.Points(geo, mat);
+  scene.add(windParticles);
+}
+
+// ============================================================
+// BIRD PARTICLES
+// ============================================================
+function createBirdParticles() {
+  const count = 15;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 80;
+    positions[i * 3 + 1] = 18 + Math.random() * 10;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 80 - 20;
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.2,
+    color: 0x2a2a2a,
+    sizeAttenuation: true
+  });
+
+  birdParticles = new THREE.Points(geo, mat);
+  birdParticles.userData.centers = [];
+  birdParticles.userData.phases = [];
+  for (let i = 0; i < count; i++) {
+    birdParticles.userData.centers.push({
+      x: positions[i * 3],
+      y: positions[i * 3 + 1],
+      z: positions[i * 3 + 2]
+    });
+    birdParticles.userData.phases.push(Math.random() * Math.PI * 2);
+  }
+  scene.add(birdParticles);
+}
+
+// ============================================================
+// PLAYER ARM
+// ============================================================
+function createPlayerArm() {
+  armGroup = new THREE.Group();
+
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.7 });
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x4a6a4a, roughness: 0.8 });
+
+  // Upper arm
+  const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), sleeveMat);
+  upperArm.position.set(0, -0.15, 0);
+  upperArm.name = 'upperArm';
+
+  // Forearm
+  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.3, 6), skinMat);
+  forearm.position.set(0, -0.32, 0.05);
+  forearm.name = 'forearm';
+
+  // Hand
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), skinMat);
+  hand.position.set(0, -0.48, 0.1);
+  hand.name = 'hand';
+
+  // Javelin in hand (will be toggled)
+  const stickInHand = createJavelinMesh();
+  stickInHand.name = 'stickInHand';
+  stickInHand.rotation.x = Math.PI / 2;
+  stickInHand.position.set(0, -0.48, 0.1);
+  stickInHand.scale.set(0.5, 0.5, 0.5);
+
+  // Bottle in hand (for drinking minigame, hidden by default)
+  const bottleInHand = createBottleMesh();
+  bottleInHand.name = 'bottleInHand';
+  bottleInHand.position.set(0, -0.42, 0.1);
+  bottleInHand.visible = false;
+
+  armGroup.add(upperArm);
+  armGroup.add(forearm);
+  armGroup.add(hand);
+  armGroup.add(stickInHand);
+  armGroup.add(bottleInHand);
+
+  // Position relative to camera
+  armGroup.position.set(0.35, -0.3, -0.5);
+  camera.add(armGroup);
+  scene.add(camera);
+}
+
+function createJavelinMesh() {
+  const group = new THREE.Group();
+  const stickMat = new THREE.MeshStandardMaterial({ color: 0x8B6914, roughness: 0.85 });
+
+  // Main shaft - slightly tapered
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.02, 1.8, 6),
+    stickMat
+  );
+  shaft.rotation.x = Math.PI / 2;
+  group.add(shaft);
+
+  // Slight bend (extra cylinder offset)
+  const bend = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016, 0.016, 0.4, 5),
+    stickMat
+  );
+  bend.position.set(0.005, 0, -0.3);
+  bend.rotation.x = Math.PI / 2 + 0.03;
+  group.add(bend);
+
+  // Carved tip
+  const tip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.018, 0.12, 5),
+    new THREE.MeshStandardMaterial({ color: 0xBB9944, roughness: 0.7 })
+  );
+  tip.rotation.x = -Math.PI / 2;
+  tip.position.z = -0.96;
+  group.add(tip);
+
+  // Grip wrap
+  const grip = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022, 0.022, 0.2, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.9 })
+  );
+  grip.rotation.x = Math.PI / 2;
+  grip.position.z = 0.1;
+  group.add(grip);
+
+  return group;
+}
+
+// ============================================================
+// BOTTLE MESH (Drinking minigame)
+// ============================================================
+function createBottleMesh() {
+  const group = new THREE.Group();
+
+  // Amber PET plastic body (semi-transparent)
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0xddcc66, roughness: 0.3, metalness: 0.1,
+    transparent: true, opacity: 0.65
+  });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.032, 0.035, 0.28, 8),
+    bodyMat
+  );
+  body.position.y = 0.14;
+  group.add(body);
+
+  // Narrow neck
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.015, 0.025, 0.1, 8),
+    bodyMat
+  );
+  neck.position.y = 0.33;
+  group.add(neck);
+
+  // White plastic screw cap
+  const cap = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.017, 0.017, 0.02, 8),
+    new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8, metalness: 0.0 })
+  );
+  cap.position.y = 0.39;
+  group.add(cap);
+
+  // Green label band (apple theme)
+  const label = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.036, 0.036, 0.1, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 0.8 })
+  );
+  label.position.y = 0.14;
+  group.add(label);
+
+  // Inner wine level mesh (amber liquid)
+  const wineLevelMat = new THREE.MeshStandardMaterial({
+    color: 0xcc8800, roughness: 0.3, transparent: true, opacity: 0.7
+  });
+  const wineLevel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.029, 0.032, 0.25, 8),
+    wineLevelMat
+  );
+  wineLevel.position.y = 0.125;
+  wineLevel.name = 'wineLevel';
+  group.add(wineLevel);
+
+  return group;
+}
+
+// ============================================================
+// JAVELIN (THROWN)
+// ============================================================
+let javelinTemplate = null;
+
+function createJavelinTemplate() {
+  javelinTemplate = createJavelinMesh();
+  javelinTemplate.scale.set(1, 1, 1);
+}
+
+function spawnJavelin(pos, vel) {
+  if (javelin) scene.remove(javelin);
+  javelin = javelinTemplate.clone();
+  javelin.position.copy(pos);
+  javelinVel.copy(vel);
+  scene.add(javelin);
+  javelinFlying = true;
+  javelinLanded = false;
+  javelinHitTree = false;
+}
+
+// ============================================================
+// DIALOGUE SYSTEM
+// ============================================================
+function showDialogue(name, text, callback) {
+  dialogueQueue.push({ name, text, callback });
+  if (!dialogueActive) advanceDialogue();
+}
+
+function advanceDialogue() {
+  if (dialogueQueue.length === 0) {
+    dialogueActive = false;
+    document.getElementById('dialogue-box').style.display = 'none';
+    if (dialogueCallback) {
+      const cb = dialogueCallback;
+      dialogueCallback = null;
+      cb();
+      // Callback may have pushed new dialogues
+      if (dialogueQueue.length > 0 && !dialogueActive) {
+        advanceDialogue();
+      }
+    }
+    return;
+  }
+
+  dialogueActive = true;
+  const d = dialogueQueue.shift();
+  dialogueFullText = d.text;
+  dialogueCharIndex = 0;
+  dialogueTimer = 0;
+  dialogueCallback = d.callback || null;
+
+  document.getElementById('dialogue-box').style.display = 'block';
+  document.getElementById('dialogue-name').textContent = d.name;
+  document.getElementById('dialogue-text').textContent = '';
+}
+
+function updateDialogue(dt) {
+  if (!dialogueActive) return;
+  dialogueTimer += dt;
+  if (dialogueCharIndex < dialogueFullText.length) {
+    const charsPerSec = 40;
+    const target = Math.min(Math.floor(dialogueTimer * charsPerSec), dialogueFullText.length);
+    if (target > dialogueCharIndex) {
+      dialogueCharIndex = target;
+      document.getElementById('dialogue-text').textContent = dialogueFullText.substring(0, dialogueCharIndex);
+    }
+  }
+}
+
+function skipOrAdvanceDialogue() {
+  if (!dialogueActive) return;
+  if (dialogueCharIndex < dialogueFullText.length) {
+    // Show full text
+    dialogueCharIndex = dialogueFullText.length;
+    document.getElementById('dialogue-text').textContent = dialogueFullText;
+  } else {
+    advanceDialogue();
+  }
+}
+
+// ============================================================
+// GAME FLOW - DIALOGUES
+// ============================================================
+function getIntroDialogue() {
+  return [
+    { name: 'Coach Matti', text: `Terve! Welcome to the forest javelin, ${playerName}. This is where legends are made... or at least where sticks are thrown.` },
+    { name: 'Coach Matti', text: 'The rules are simple: throw the stick as far as you can between those two big pines. One throw per round — make it count!' },
+    { name: 'Coach Matti', text: 'Watch out for the birch tree in the middle - hit that and your throw is foul! The crowd will have a good laugh though.' },
+    { name: 'Coach Matti', text: 'Aim with the mouse. Hold Space to charge power, release to throw. Feel the wind and read the forest. Good luck!' },
+  ];
+}
+
+function getRoundIntroDialogue(round) {
+  const dialogues = [
+    [
+      { name: 'Coach Matti', text: `Round 1: "${ROUNDS[0].name}". Just a friendly warm-up. Try to throw past ${ROUNDS[0].target} meters.` },
+      { name: 'Jukka', text: `Hey ${playerName}! Show us what you got. No pressure... mostly.` },
+    ],
+    [
+      { name: 'Coach Matti', text: `Round 2: "${ROUNDS[1].name}". The locals are watching now. You need ${ROUNDS[1].target} meters to advance.` },
+      { name: 'Heikki', text: "I've been throwing sticks in this forest since I was five. Good luck keeping up." },
+      { name: 'Coach Matti', text: 'Watch the wind carefully this round. Angle your throw to work with it, not against it.' },
+    ],
+    [
+      { name: 'Coach Matti', text: `Round 3: "${ROUNDS[2].name}". The wind is really picking up now. ${ROUNDS[2].target} meters to survive.` },
+      { name: 'Jukka', text: 'Feel that wind? Even the trees are nervous.' },
+      { name: 'Coach Matti', text: 'Use the wind to your advantage. Sometimes a crosswind can carry the stick further than you think.' },
+    ],
+    [
+      { name: 'Coach Matti', text: `Round 4: "${ROUNDS[3].name}". Only the truly determined make it past this point. ${ROUNDS[3].target} meters.` },
+      { name: 'Heikki', text: 'Most people quit by now. The forest respects stubbornness though.' },
+      { name: 'Jukka', text: `Come on ${playerName}, show the forest who is boss!` },
+    ],
+    [
+      { name: 'Coach Matti', text: `Round 5: "${ROUNDS[4].name}". ${ROUNDS[4].target} meters. This is where champions are separated from everyone else.` },
+      { name: 'Coach Matti', text: 'Strong winds and that birch is right in your way. You can try to throw over it or angle around it.' },
+      { name: 'Heikki', text: 'Nobody beats the forest. Especially not with this wind.' },
+    ],
+    [
+      { name: 'Coach Matti', text: `Round 6: "${ROUNDS[5].name}". The final round. ${ROUNDS[5].target} meters for the championship.` },
+      { name: 'Coach Matti', text: 'But first... there is one last tradition. The final throw must be made... without clothing.' },
+      { name: 'Jukka', text: 'WHAT?! You cannot be serious, Matti!' },
+      { name: 'Heikki', text: 'He is serious. The old champions always threw the last one naked. It is about becoming one with the forest.' },
+      { name: 'Coach Matti', text: `Strip down, ${playerName}. Nothing left to lose — literally. Let the forest see the real you.` },
+    ],
+  ];
+  return dialogues[round] || [];
+}
+
+function getTreeHitDialogue() {
+  const lines = [
+    { name: 'Coach Matti', text: 'THWACK! Right in the birch! That poor tree...' },
+    { name: 'Jukka', text: 'Ha! The tree wins this round!' },
+    { name: 'Coach Matti', text: "It's a foul throw. The tree has been standing there for 80 years - try throwing AROUND it." },
+  ];
+  return lines[Math.floor(Math.random() * lines.length)];
+}
+
+function getGoodThrowDialogue(dist) {
+  if (dist > 50) return { name: 'Coach Matti', text: `About ${Math.round(dist)} meters! That stick really flew! The forest hasn't seen a throw like that in years.` };
+  if (dist > 35) return { name: 'Jukka', text: `About ${Math.round(dist)} meters - not bad at all! You might actually be good at this.` };
+  return { name: 'Coach Matti', text: `About ${Math.round(dist)} meters. Decent throw. You can do better though!` };
+}
+
+function getVictoryDialogue() {
+  return [
+    { name: 'Coach Matti', text: 'INCREDIBLE! You did it! The new Forest Javelin Champion!' },
+    { name: 'Jukka', text: `I... cannot believe it. ${playerName} actually did it naked and everything!` },
+    { name: 'Heikki', text: "Fair play. That was the finest stick-throwing I've ever witnessed. Clothed or otherwise." },
+    { name: 'Coach Matti', text: `Now please put your clothes back on, ${playerName}. The mosquitoes are getting interested.` },
+    { name: 'Coach Matti', text: "The legend of the forest javelin lives on. Until next autumn, champion!" },
+  ];
+}
+
+function getDefeatDialogue() {
+  return [
+    { name: 'Coach Matti', text: `Not quite far enough... You needed ${ROUNDS[currentRound].target} meters.` },
+    { name: 'Coach Matti', text: "Don't worry. The forest is patient. Come back when the leaves fall again." },
+  ];
+}
+
+// ============================================================
+// DRINKING MINIGAME DIALOGUES
+// ============================================================
+function getDrinkingIntroDialogue() {
+  return [
+    { name: 'Coach Matti', text: 'Wait — before you throw, there is a tradition. Every competitor must first drink an entire bottle of Pohjolan Omenapuisto.' },
+    { name: 'Coach Matti', text: "It's apple wine. Strong stuff. The old champions swore it gave them power. Personally I think it just made them brave." },
+    { name: 'Jukka', text: `Ha! Let's see if ${playerName} can even handle a whole bottle. My grandmother drinks faster than most people here.` },
+    { name: 'Heikki', text: 'A word of advice — pace yourself. Drink too fast and your stomach will revolt. Nobody wants to see that.' },
+    { name: 'Coach Matti', text: 'Hold Space to drink. But take breaks or the nausea will get you. Finish the whole bottle to proceed!' },
+  ];
+}
+
+function getDrinkingCompleteDialogue() {
+  return [
+    { name: 'Coach Matti', text: 'Ha! You finished the whole bottle! The forest spirits smile upon you... or maybe that is just the wine.' },
+    { name: 'Jukka', text: 'Not bad... but can you still throw straight? That stuff hits harder than it tastes.' },
+    { name: 'Coach Matti', text: 'Your hands might wobble a bit now. That is part of the challenge. The true champion throws well even after the wine!' },
+  ];
+}
+
+function getPukeDialogue() {
+  return [
+    { name: 'Coach Matti', text: 'Oh no... I told you to pace yourself! The apple wine demands respect!' },
+    { name: 'Jukka', text: `BAHAHAHA! ${playerName} could not handle it! Someone get a mop!` },
+    { name: 'Heikki', text: 'The forest takes as much as it gives. There is wisdom in knowing your limits... and you just found yours.' },
+  ];
+}
+
+function getBottle2IntroDialogue() {
+  return [
+    { name: 'Coach Matti', text: `Now ${playerName}, there is one more tradition. The second bottle — 15% strong batch. Real champion stuff.` },
+    { name: 'Jukka', text: 'Drinking between throws! Now this is what the championship is really about.' },
+    { name: 'Coach Matti', text: 'This one hits harder. Pace yourself or your next throw will go straight into the trees.' },
+  ];
+}
+
+function getBottle2CompleteDialogue() {
+  return [
+    { name: 'Coach Matti', text: `Both bottles down! ${playerName} has earned the right to continue!` },
+    { name: 'Heikki', text: 'Look at that wobble... this should be interesting.' },
+  ];
+}
+
+function getBottle2GameOverDialogue() {
+  return [
+    { name: 'Coach Matti', text: `Sorry ${playerName}, you cannot continue past round 3 without drinking both bottles. Those are the rules.` },
+    { name: 'Heikki', text: 'The tradition must be respected. No bottle, no championship.' },
+  ];
+}
+
+// ============================================================
+// WIND
+// ============================================================
+function randomizeWind() {
+  const round = ROUNDS[currentRound];
+  windSpeed = round.windBase * (0.5 + Math.random() * 0.8);
+  windAngle = Math.random() * Math.PI * 2;
+}
+
+function getWindDisplay() {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  const idx = Math.round(((windAngle + Math.PI) / (Math.PI * 2)) * 8) % 8;
+  const arrow = ['↓', '↙', '←', '↖', '↑', '↗', '→', '↘'][idx];
+  return `Wind: ${windSpeed.toFixed(1)} m/s ${dirs[idx]} ${arrow}`;
+}
+
+// ============================================================
+// JAVELIN PHYSICS
+// ============================================================
+function updateJavelinPhysics(dt) {
+  if (!javelinFlying || !javelin) return;
+
+  const gravity = new THREE.Vector3(0, -9.81, 0);
+
+  // Wind force
+  const windForce = new THREE.Vector3(
+    Math.cos(windAngle) * windSpeed * 0.15,
+    0,
+    Math.sin(windAngle) * windSpeed * 0.15
+  );
+
+  // Drag (higher than real javelin - it's a stick)
+  const speed = javelinVel.length();
+  const dragCoeff = 0.004;
+  const drag = javelinVel.clone().normalize().multiplyScalar(-dragCoeff * speed * speed);
+
+  // Slight lift if nose is angled up
+  const velDir = javelinVel.clone().normalize();
+  const lift = new THREE.Vector3(0, Math.max(0, -velDir.y) * speed * 0.03, 0);
+
+  // Apply forces
+  const accel = gravity.clone().add(windForce).add(drag).add(lift);
+  javelinVel.add(accel.multiplyScalar(dt));
+
+  javelin.position.add(javelinVel.clone().multiplyScalar(dt));
+
+  // Align javelin to velocity (pitching moment)
+  const targetDir = javelinVel.clone().normalize();
+  const currentForward = new THREE.Vector3(0, 0, -1);
+  const quat = new THREE.Quaternion().setFromUnitVectors(currentForward, targetDir);
+  javelin.quaternion.slerp(quat, 0.05);
+
+  // Check collision with obstacle pine
+  if (obstaclePine) {
+    const dx = javelin.position.x - obstaclePine.position.x;
+    const dz = javelin.position.z - obstaclePine.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    const obstBaseY = obstaclePine.position.y;
+    if (dist < obstaclePine.userData.radius &&
+        javelin.position.y > obstBaseY && javelin.position.y < obstBaseY + 14) {
+      // Hit the tree!
+      javelinFlying = false;
+      javelinHitTree = true;
+      javelinVel.set(dx * 3, 2, dz * 3); // bounce off
+      playSound('tree_hit');
+      playSound('laugh');
+
+      setTimeout(() => {
+        onJavelinLanded(true);
+      }, 500);
+      return;
+    }
+  }
+
+  // Check if out of sector (between the two sector pines)
+  const sectorLeft = sectorLeftPine.position.x;
+  const sectorRight = sectorRightPine.position.x;
+
+  // Ground collision
+  const terrainY = getTerrainHeight(javelin.position.x, javelin.position.z);
+  if (javelin.position.y <= terrainY + 0.1) {
+    javelinFlying = false;
+    javelinLanded = true;
+
+    // Check if tip first (valid) or tumble (foul)
+    const tipDown = velDir.y < -0.3;
+
+    // Check if in sector
+    const inSector = javelin.position.x > sectorLeft &&
+                     javelin.position.x < sectorRight;
+
+    const foul = !tipDown || !inSector;
+
+    javelin.position.y = terrainY + 0.1;
+
+    if (tipDown) {
+      // Stick it in the ground at an angle
+      javelin.rotation.x = -Math.PI / 4;
+    }
+
+    playSound('impact');
+    if (!foul) playSound('cheer');
+
+    onJavelinLanded(foul);
+  }
+}
+
+function onJavelinLanded(foul) {
+  javelinFlying = false;
+  landedFoul = foul;
+
+  if (!foul) {
+    // Calculate distance from player
+    landedDistance = Math.sqrt(
+      javelin.position.x * javelin.position.x +
+      javelin.position.z * javelin.position.z
+    );
+
+    // Fuzzy display (no official markers)
+    const displayDist = Math.round(landedDistance) + (Math.random() > 0.5 ? 0.5 : 0);
+
+    if (landedDistance > bestDistances[currentRound]) {
+      bestDistances[currentRound] = landedDistance;
+    }
+  } else {
+    landedDistance = 0;
+  }
+
+  gameState = STATES.LANDED;
+
+  // Show distance after brief delay
+  setTimeout(() => {
+    showLandedResult();
+  }, 800);
+}
+
+function showLandedResult() {
+  gameState = STATES.RESULT;
+
+  const distEl = document.getElementById('distance-display');
+
+  if (landedFoul) {
+    if (javelinHitTree) {
+      distEl.innerHTML = 'FOUL!<span class="sub">Hit the obstacle tree!</span>';
+      // Show tree hit dialogue
+      const d = getTreeHitDialogue();
+      showDialogue(d.name, d.text, null);
+    } else {
+      distEl.innerHTML = 'FOUL!<span class="sub">Outside the sector or bad landing</span>';
+    }
+  } else {
+    const approx = `~${Math.round(landedDistance)}m`;
+    distEl.innerHTML = `${approx}`;
+    // Show reaction dialogue
+    const d = getGoodThrowDialogue(landedDistance);
+    showDialogue(d.name, d.text, null);
+  }
+
+  distEl.style.display = 'block';
+
+  // NPC reactions
+  npcMeshes.forEach(npc => {
+    npc.userData.reaction = landedFoul ? 'headshake' : (landedDistance > 40 ? 'celebrate' : 'clap');
+    npc.userData.reactionTimer = 2.0;
+  });
+
+  // Auto-advance after delay
+  setTimeout(() => {
+    distEl.style.display = 'none';
+    if (landedFoul) {
+      // Foul = 0m, no retry, advance to next round
+      currentRound++;
+
+      if (currentRound === 1) {
+        bottle2Available = true;
+      }
+      if (currentRound === 3 && !bottle2Completed) {
+        gameState = STATES.BOTTLE2_GAMEOVER;
+        const dialogue = getBottle2GameOverDialogue();
+        dialogue.forEach((d, i) => {
+          showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+            showResultOverlay('DISQUALIFIED!', 'Must drink both bottles to continue past round 3. Click to restart.');
+          } : null);
+        });
+        return;
+      }
+      if (currentRound >= 6) {
+        restorePlayerClothing();
+        gameState = STATES.VICTORY;
+        const vd = getVictoryDialogue();
+        vd.forEach((d, i) => {
+          showDialogue(d.name, d.text, i === vd.length - 1 ? () => {
+            showResultOverlay('CHAMPION!', 'You are the Forest Javelin Champion!');
+          } : null);
+        });
+        return;
+      }
+      gameState = STATES.ROUND_DIALOGUE;
+      const rd = getRoundIntroDialogue(currentRound);
+      rd.forEach((d, i) => {
+        showDialogue(d.name, d.text, i === rd.length - 1 ? () => {
+          if (currentRound === 5) {
+            undressPlayer();
+          }
+          randomizeWind();
+          resetForThrow();
+        } : null);
+      });
+    } else {
+      endRound();
+    }
+  }, 3500);
+}
+
+function endRound() {
+  const best = bestDistances[currentRound];
+  const target = ROUNDS[currentRound].target;
+
+  if (best >= target) {
+    // Round passed!
+    currentRound++;
+
+    if (currentRound === 1) {
+      bottle2Available = true;
+    }
+    if (currentRound === 3 && !bottle2Completed) {
+      gameState = STATES.BOTTLE2_GAMEOVER;
+      const dialogue = getBottle2GameOverDialogue();
+      dialogue.forEach((d, i) => {
+        showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+          showResultOverlay('DISQUALIFIED!', 'Must drink both bottles to continue past round 3. Click to restart.');
+        } : null);
+      });
+      return;
+    }
+
+    if (currentRound >= 6) {
+      // Victory!
+      restorePlayerClothing();
+      gameState = STATES.VICTORY;
+      const vd = getVictoryDialogue();
+      vd.forEach((d, i) => {
+        showDialogue(d.name, d.text, i === vd.length - 1 ? () => {
+          showResultOverlay('CHAMPION!', 'You are the Forest Javelin Champion!');
+        } : null);
+      });
+    } else {
+      // Next round dialogue
+      gameState = STATES.ROUND_DIALOGUE;
+      const rd = getRoundIntroDialogue(currentRound);
+      rd.forEach((d, i) => {
+        showDialogue(d.name, d.text, i === rd.length - 1 ? () => {
+          if (currentRound === 5) {
+            undressPlayer();
+          }
+          randomizeWind();
+          resetForThrow();
+        } : null);
+      });
+    }
+  } else {
+    // Defeat
+    gameState = STATES.DEFEAT;
+    const dd = getDefeatDialogue();
+    dd.forEach((d, i) => {
+      showDialogue(d.name, d.text, i === dd.length - 1 ? () => {
+        showResultOverlay('NOT ENOUGH', `Best: ~${Math.round(best)}m / Target: ${target}m. Click to retry round.`);
+      } : null);
+    });
+  }
+}
+
+function showResultOverlay(title, sub) {
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-sub').textContent = isMobile ? sub.replace(/Click/g, 'Tap') : sub;
+  document.getElementById('result-overlay').style.display = 'flex';
+}
+
+// ============================================================
+// DRINKING MINIGAME FLOW
+// ============================================================
+function startDrinkingMinigame() {
+  gameState = STATES.DRINKING;
+  drinkProgress = 0;
+  nauseaLevel = 0;
+  isDrinking = false;
+  drinkGulpTimer = 0;
+  lastStomachGurgle = 0;
+
+  // Show UI
+  document.getElementById('drink-meter').style.display = 'block';
+  document.getElementById('drink-fill').style.height = '0%';
+  document.getElementById('drink-label').style.display = 'block';
+  document.getElementById('drink-label').textContent = 'BOTTLE';
+  document.getElementById('nausea-meter').style.display = 'block';
+  document.getElementById('nausea-fill').style.height = '0%';
+  document.getElementById('nausea-label').style.display = 'block';
+  document.getElementById('drink-instruction').style.display = 'block';
+  document.getElementById('drink-instruction').textContent = isMobile ? 'Hold DRINK to drink — but pace yourself!' : 'Hold SPACE to drink — but pace yourself!';
+  document.getElementById('crosshair').style.display = 'none';
+
+  // Show bottle, hide javelin
+  if (armGroup) {
+    const stick = armGroup.getObjectByName('stickInHand');
+    if (stick) stick.visible = false;
+    const bottle = armGroup.getObjectByName('bottleInHand');
+    if (bottle) bottle.visible = true;
+  }
+
+  bottleNumber = 1;
+  armAnimState = 'drinking_idle';
+  armAnimTime = 0;
+
+  // Set camera to first person looking forward
+  camera.position.copy(PLAYER_POS);
+  camera.rotation.set(0, 0, 0);
+
+  // Update info panel
+  document.getElementById('info-panel').innerHTML = 'Pohjolan Omenapuisto<br>Apple Wine — 12%';
+  document.getElementById('wind-indicator').innerHTML = '';
+}
+
+function updateDrinking(dt, time) {
+  if (gameState !== STATES.DRINKING) return;
+
+  const drinkRate = bottleNumber === 2 ? BOTTLE2_DRINK_RATE : DRINK_RATE;
+  const nauseaBuild = bottleNumber === 2 ? BOTTLE2_NAUSEA_BUILD_RATE : NAUSEA_BUILD_RATE;
+  const nauseaDecay = bottleNumber === 2 ? BOTTLE2_NAUSEA_DECAY_RATE : NAUSEA_DECAY_RATE;
+  const nauseaAccel = bottleNumber === 2 ? BOTTLE2_NAUSEA_ACCEL : DRINK_NAUSEA_ACCEL;
+
+  if (isDrinking) {
+    // Increase drink progress
+    drinkProgress += drinkRate * dt;
+
+    // Build nausea (quadratic feel: base + acceleration based on current nausea)
+    nauseaLevel += (nauseaBuild + nauseaAccel * nauseaLevel) * dt;
+
+    // Gulp sounds (~4 per second)
+    drinkGulpTimer += dt;
+    if (drinkGulpTimer >= 0.25) {
+      drinkGulpTimer = 0;
+      playSound('gulp');
+    }
+  } else {
+    // Nausea decays while resting
+    nauseaLevel = Math.max(0, nauseaLevel - nauseaDecay * dt);
+    drinkGulpTimer = 0;
+  }
+
+  // Clamp values
+  drinkProgress = Math.min(drinkProgress, 1);
+  nauseaLevel = Math.min(nauseaLevel, 1);
+
+  // Stomach gurgle at high nausea
+  if (nauseaLevel > 0.7 && time - lastStomachGurgle > 1.5 + Math.random() * 2) {
+    lastStomachGurgle = time;
+    playSound('stomach_gurgle');
+  }
+
+  // Update wine level in bottle
+  if (armGroup) {
+    const bottle = armGroup.getObjectByName('bottleInHand');
+    if (bottle) {
+      const wineLevel = bottle.getObjectByName('wineLevel');
+      if (wineLevel) {
+        const remaining = 1 - drinkProgress;
+        wineLevel.scale.y = Math.max(0.01, remaining);
+        wineLevel.position.y = 0.125 * remaining;
+      }
+    }
+  }
+
+  // Update UI
+  updateDrinkingUI();
+  updateNauseaEffects(time);
+
+  // Check puke (nausea maxed)
+  if (nauseaLevel >= 1) {
+    triggerPuke();
+    return;
+  }
+
+  // Check complete (bottle emptied)
+  if (drinkProgress >= 1) {
+    completeDrinking();
+    return;
+  }
+}
+
+function updateDrinkingUI() {
+  document.getElementById('drink-fill').style.height = (drinkProgress * 100) + '%';
+  document.getElementById('nausea-fill').style.height = (nauseaLevel * 100) + '%';
+
+  // Update info panel with status
+  let status = '';
+  if (nauseaLevel > 0.8) status = 'DANGER! Slow down!';
+  else if (nauseaLevel > 0.6) status = 'Getting queasy...';
+  else if (nauseaLevel > 0.4) status = 'Feeling warm...';
+  else if (drinkProgress > 0.7) status = 'Almost there!';
+  else if (drinkProgress > 0) status = 'Drinking...';
+  else status = 'Ready to drink';
+
+  document.getElementById('info-panel').innerHTML =
+    `Pohjolan Omenapuisto<br>` +
+    `Bottle: ${Math.round(drinkProgress * 100)}%<br>` +
+    `${status}`;
+}
+
+function updateNauseaEffects(time) {
+  const overlay = document.getElementById('nausea-overlay');
+
+  if (nauseaLevel > 0.3) {
+    overlay.style.display = 'block';
+    const alpha = (nauseaLevel - 0.3) / 0.7; // 0→1 over nausea 0.3→1.0
+    // Pulse the vignette at high nausea
+    const pulse = nauseaLevel > 0.6 ? Math.sin(time * 4) * 0.1 : 0;
+    const a = Math.min(0.6, alpha * 0.6 + pulse);
+    overlay.style.background = `radial-gradient(ellipse at center,
+      rgba(0,80,0,0) 30%,
+      rgba(0,60,0,${a.toFixed(2)}) 100%)`;
+  } else {
+    overlay.style.display = 'none';
+  }
+
+  // Camera nausea wobble during drinking
+  if (gameState === STATES.DRINKING && nauseaLevel > 0.2) {
+    const wobble = (nauseaLevel - 0.2) * 0.05;
+    camera.rotation.z = Math.sin(time * 3) * wobble;
+    camera.rotation.x = Math.sin(time * 2.3) * wobble * 0.5;
+  }
+}
+
+function completeDrinking() {
+  if (bottleNumber === 2) {
+    isDrinking = false;
+    bottle2Completed = true;
+    bottle2InProgress = false;
+    wineWobbleIntensity = Math.min(0.18, 0.08 + nauseaLevel * 0.15);
+    playSound('burp');
+    hideDrinkingUI();
+    document.getElementById('bottle-toggle').style.display = 'none';
+
+    gameState = STATES.ROUND_DIALOGUE;
+    const dialogue = getBottle2CompleteDialogue();
+    dialogue.forEach((d, i) => {
+      showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+        // Restore aim state
+        aimPitch = preBottle2AimPitch;
+        aimYaw = preBottle2AimYaw;
+
+        // Show javelin, hide bottle
+        if (armGroup) {
+          const bottle = armGroup.getObjectByName('bottleInHand');
+          if (bottle) bottle.visible = false;
+          const stick = armGroup.getObjectByName('stickInHand');
+          if (stick) stick.visible = true;
+        }
+
+        gameState = STATES.AIMING;
+        document.getElementById('crosshair').style.display = '';
+        document.getElementById('drink-label').style.display = 'none';
+        armAnimState = 'idle';
+        armAnimTime = 0;
+      } : null);
+    });
+    return;
+  }
+
+  isDrinking = false;
+  gameState = STATES.CELEBRATION_CAMERA;
+  armAnimState = 'drinking_done';
+  armAnimTime = 0;
+
+  // Capture wobble intensity based on remaining nausea
+  wineWobbleIntensity = 0.08 + nauseaLevel * 0.1;
+
+  playSound('burp');
+  hideDrinkingUI();
+
+  // Start celebration camera
+  celebrationAnimTime = 0;
+
+  // Hide first-person arm during bird's eye
+  if (armGroup) armGroup.visible = false;
+
+  // NPC celebrate reactions
+  npcMeshes.forEach(npc => {
+    npc.userData.reaction = 'celebrate';
+    npc.userData.reactionTimer = CELEBRATION_DURATION + 2;
+  });
+}
+
+function onCelebrationComplete() {
+  gameState = STATES.DRINKING_COMPLETE;
+
+  // Restore first-person arm
+  if (armGroup) armGroup.visible = true;
+
+  // Snap camera back to first person
+  camera.position.copy(PLAYER_POS);
+  camera.rotation.set(0, 0, 0);
+
+  // Show completion dialogue, then chain to round 1
+  const dialogue = getDrinkingCompleteDialogue();
+  dialogue.forEach((d, i) => {
+    showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+      // Hide bottle, show javelin
+      if (armGroup) {
+        const bottle = armGroup.getObjectByName('bottleInHand');
+        if (bottle) bottle.visible = false;
+        const stick = armGroup.getObjectByName('stickInHand');
+        if (stick) stick.visible = true;
+      }
+
+      // Start NPC walk to spectating positions
+      startNPCWalkToPositions();
+
+      // Start round 1
+      currentRound = 0;
+      currentThrow = 0;
+      gameState = STATES.ROUND_DIALOGUE;
+      const rd = getRoundIntroDialogue(0);
+      rd.forEach((rd2, j) => {
+        showDialogue(rd2.name, rd2.text, j === rd.length - 1 ? () => {
+          randomizeWind();
+          resetForThrow();
+        } : null);
+      });
+    } : null);
+  });
+}
+
+function triggerPuke() {
+  isDrinking = false;
+  bottle2InProgress = false;
+  gameState = STATES.PUKE_GAMEOVER;
+
+  playSound('puke');
+  playSound('laugh');
+  hideDrinkingUI();
+
+  // NPC reactions
+  npcMeshes.forEach(npc => {
+    npc.userData.reaction = 'celebrate'; // they find it hilarious
+    npc.userData.reactionTimer = 4.0;
+  });
+
+  // Show puke dialogue then game over overlay
+  const dialogue = getPukeDialogue();
+  dialogue.forEach((d, i) => {
+    showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+      document.getElementById('puke-overlay').style.display = 'flex';
+    } : null);
+  });
+}
+
+function startRoundDrinking() {
+  preBottle2AimPitch = aimPitch;
+  preBottle2AimYaw = aimYaw;
+  bottleNumber = 2;
+
+  if (bottle2InProgress) {
+    startDrinkingMinigameBottle2();
+    return;
+  }
+
+  gameState = STATES.ROUND_DIALOGUE;
+  const dialogue = getBottle2IntroDialogue();
+  dialogue.forEach((d, i) => {
+    showDialogue(d.name, d.text, i === dialogue.length - 1 ? () => {
+      startDrinkingMinigameBottle2();
+    } : null);
+  });
+}
+
+function startDrinkingMinigameBottle2() {
+  gameState = STATES.DRINKING;
+  if (!bottle2InProgress) {
+    drinkProgress = 0;
+    nauseaLevel = 0;
+  }
+  bottle2InProgress = true;
+  isDrinking = false;
+  drinkGulpTimer = 0;
+  lastStomachGurgle = 0;
+
+  // Show UI
+  document.getElementById('drink-meter').style.display = 'block';
+  document.getElementById('drink-fill').style.height = (drinkProgress * 100) + '%';
+  document.getElementById('drink-label').style.display = 'block';
+  document.getElementById('drink-label').textContent = 'BOTTLE 2';
+  document.getElementById('nausea-meter').style.display = 'block';
+  document.getElementById('nausea-fill').style.height = (nauseaLevel * 100) + '%';
+  document.getElementById('nausea-label').style.display = 'block';
+  document.getElementById('drink-instruction').style.display = 'block';
+  document.getElementById('drink-instruction').textContent = isMobile ? 'Hold DRINK to drink — this one is STRONGER!' : 'Hold SPACE to drink — this one is STRONGER!';
+  document.getElementById('crosshair').style.display = 'none';
+
+  // Keep bottle toggle visible for bottle 2, update label
+  const bottleToggle = document.getElementById('bottle-toggle');
+  bottleToggle.style.display = 'flex';
+  document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDFF9';
+  document.getElementById('bottle-toggle-label').textContent = isMobile ? 'THROW' : 'THROW (D)';
+
+  // Show bottle, hide javelin
+  if (armGroup) {
+    armGroup.visible = true;
+    const stick = armGroup.getObjectByName('stickInHand');
+    if (stick) stick.visible = false;
+    const bottle = armGroup.getObjectByName('bottleInHand');
+    if (bottle) bottle.visible = true;
+
+    // Restore wine level from current progress
+    const wineLevel = bottle ? bottle.getObjectByName('wineLevel') : null;
+    if (wineLevel) {
+      const remaining = 1 - drinkProgress;
+      wineLevel.scale.y = Math.max(0.01, remaining);
+      wineLevel.position.y = 0.125 * remaining;
+    }
+  }
+
+  armAnimState = 'drinking_idle';
+  armAnimTime = 0;
+
+  // Set camera to first person looking forward
+  camera.position.copy(PLAYER_POS);
+  camera.rotation.set(0, 0, 0);
+
+  // Update info panel
+  document.getElementById('info-panel').innerHTML = 'Pohjolan Omenapuisto<br>Apple Wine — 15% (Strong Batch!)';
+  document.getElementById('wind-indicator').innerHTML = '';
+}
+
+function hideDrinkingUI() {
+  document.getElementById('drink-meter').style.display = 'none';
+  document.getElementById('drink-label').style.display = 'none';
+  document.getElementById('nausea-meter').style.display = 'none';
+  document.getElementById('nausea-label').style.display = 'none';
+  document.getElementById('drink-instruction').style.display = 'none';
+  document.getElementById('nausea-overlay').style.display = 'none';
+}
+
+// ============================================================
+// GAME FLOW
+// ============================================================
+function showCharacterSelect() {
+  gameState = STATES.CHARACTER_SELECT;
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('character-select').style.display = 'flex';
+
+  const options = document.querySelectorAll('.color-option');
+  options.forEach(opt => {
+    opt.addEventListener('click', () => {
+      options.forEach(o => o.classList.remove('selected'));
+      opt.classList.add('selected');
+      playerJacketColor = parseInt(opt.dataset.jacket);
+      playerBeanieColor = parseInt(opt.dataset.beanie);
+    });
+  });
+
+  document.getElementById('ready-btn').addEventListener('click', () => {
+    const nameVal = document.getElementById('name-input').value.trim();
+    if (nameVal) playerName = nameVal;
+    document.getElementById('character-select').style.display = 'none';
+    applyPlayerColors();
+    startGame();
+  });
+}
+
+function applyPlayerColors() {
+  if (armGroup) {
+    const upperArm = armGroup.getObjectByName('upperArm');
+    if (upperArm) upperArm.material.color.setHex(playerJacketColor);
+  }
+}
+
+function undressPlayer() {
+  isNaked = true;
+  if (armGroup) {
+    const upperArm = armGroup.getObjectByName('upperArm');
+    if (upperArm) upperArm.material.color.setHex(0xd4a574); // skin
+  }
+  npcMeshes.forEach(npc => {
+    npc.userData.reaction = 'celebrate';
+    npc.userData.reactionTimer = 3.0;
+  });
+}
+
+function restorePlayerClothing() {
+  isNaked = false;
+  if (armGroup) {
+    const upperArm = armGroup.getObjectByName('upperArm');
+    if (upperArm) upperArm.material.color.setHex(playerJacketColor);
+  }
+}
+
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('character-select').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+
+  initAudio();
+  playSound('ambient');
+
+  gameState = STATES.INTRO_DIALOGUE;
+
+  const intro = getIntroDialogue();
+  intro.forEach((d, i) => {
+    showDialogue(d.name, d.text, i === intro.length - 1 ? () => {
+      // Enter drinking intro instead of going directly to round 1
+      gameState = STATES.DRINKING_INTRO;
+      const drinkIntro = getDrinkingIntroDialogue();
+      drinkIntro.forEach((d2, j) => {
+        showDialogue(d2.name, d2.text, j === drinkIntro.length - 1 ? () => {
+          startDrinkingMinigame();
+        } : null);
+      });
+    } : null);
+  });
+}
+
+function resetForThrow() {
+  gameState = STATES.AIMING;
+  aimPitch = 35;
+  aimYaw = 0;
+  chargePower = 0;
+  isCharging = false;
+  chargeDirection = 1;
+  armAnimState = 'idle';
+  armAnimTime = 0;
+  javelinFlying = false;
+  javelinLanded = false;
+  javelinHitTree = false;
+  landedFoul = false;
+
+  // Show stick in hand
+  if (armGroup) {
+    const stick = armGroup.getObjectByName('stickInHand');
+    if (stick) stick.visible = true;
+  }
+
+  // Remove old javelin
+  if (javelin) {
+    scene.remove(javelin);
+    javelin = null;
+  }
+
+  // Reset camera orientation
+  camera.rotation.set(0, 0, 0);
+
+  document.getElementById('power-meter').style.display = 'none';
+  document.getElementById('distance-display').style.display = 'none';
+  document.getElementById('crosshair').style.display = '';
+
+  // Hide bottle, ensure javelin is visible
+  if (armGroup) {
+    const bottle = armGroup.getObjectByName('bottleInHand');
+    if (bottle) bottle.visible = false;
+  }
+
+  // Pointer lock will be re-acquired on next click (requires user gesture)
+}
+
+function doThrow() {
+  if (gameState !== STATES.CHARGING) return;
+
+  gameState = STATES.FLIGHT;
+  armAnimState = 'release';
+  armAnimTime = 0;
+
+  // Calculate throw direction
+  const pitchRad = aimPitch * Math.PI / 180;
+  const yawRad = aimYaw * Math.PI / 180;
+
+  const dir = new THREE.Vector3(
+    Math.sin(yawRad) * Math.cos(pitchRad),
+    Math.sin(pitchRad),
+    -Math.cos(yawRad) * Math.cos(pitchRad)
+  ).normalize();
+
+  // Power: 15-35 m/s base speed for the stick
+  const baseSpeed = 15 + chargePower * 22;
+  const vel = dir.multiplyScalar(baseSpeed);
+
+  // Spawn position (slightly in front of player)
+  const spawnPos = new THREE.Vector3(0, PLAYER_POS.y + 0.2, -1.5);
+  spawnJavelin(spawnPos, vel);
+
+  // Hide stick in hand
+  if (armGroup) {
+    const stick = armGroup.getObjectByName('stickInHand');
+    if (stick) stick.visible = false;
+  }
+
+  playSound('throw');
+  playSound('flight');
+
+  document.getElementById('power-meter').style.display = 'none';
+
+  // Release pointer lock during flight
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+}
+
+function retryRound() {
+  document.getElementById('result-overlay').style.display = 'none';
+  bestDistances[currentRound] = 0;
+  randomizeWind();
+  resetForThrow();
+}
+
+function restartGame() {
+  document.getElementById('result-overlay').style.display = 'none';
+  document.getElementById('puke-overlay').style.display = 'none';
+  document.getElementById('nausea-overlay').style.display = 'none';
+  hideDrinkingUI();
+
+  // Reset drinking state
+  drinkProgress = 0;
+  nauseaLevel = 0;
+  isDrinking = false;
+  wineWobbleIntensity = 0;
+
+  // Hide bottle
+  if (armGroup) {
+    const bottle = armGroup.getObjectByName('bottleInHand');
+    if (bottle) bottle.visible = false;
+  }
+
+  // Reset NPC positions to gathered
+  npcMeshes.forEach(npc => {
+    const gp = npc.userData.gatheredPos;
+    if (gp) {
+      npc.position.set(gp.x, getTerrainHeight(gp.x, gp.z), gp.z);
+      npc.userData.baseY = getTerrainHeight(gp.x, gp.z);
+      npc.rotation.y = Math.atan2(-gp.x, 1);
+    }
+  });
+  npcIsWalking = false;
+  npcWalkProgress = 0;
+
+  // Reset bottle 2 state
+  bottleNumber = 1;
+  bottle2Completed = false;
+  bottle2Available = false;
+  bottle2InProgress = false;
+
+  currentRound = 0;
+  currentThrow = 0;
+  bestDistances = [0, 0, 0, 0, 0, 0];
+  restorePlayerClothing();
+  startGame();
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+function requestPointerLock() {
+  if (isMobile) return;
+  renderer.domElement.requestPointerLock();
+}
+
+document.addEventListener('pointerlockchange', () => {
+  pointerLocked = !!document.pointerLockElement;
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!pointerLocked) return;
+  if (gameState !== STATES.AIMING && gameState !== STATES.CHARGING) return;
+
+  const sensitivity = 0.15;
+  aimYaw = Math.max(-20, Math.min(20, aimYaw - e.movementX * sensitivity));
+  aimPitch = Math.max(5, Math.min(55, aimPitch - e.movementY * sensitivity));
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault();
+
+    if (dialogueActive) {
+      skipOrAdvanceDialogue();
+      return;
+    }
+
+    if (gameState === STATES.DRINKING) {
+      isDrinking = true;
+      armAnimState = 'drinking_active';
+      armAnimTime = 0;
+      return;
+    }
+
+    if (gameState === STATES.AIMING) {
+      gameState = STATES.CHARGING;
+      isCharging = true;
+      chargePower = 0;
+      chargeDirection = 1;
+      armAnimState = 'windup';
+      armAnimTime = 0;
+      document.getElementById('power-meter').style.display = 'block';
+    }
+  }
+
+  if (e.code === 'KeyD') {
+    if (gameState === STATES.DRINKING && bottleNumber === 2) {
+      // Toggle from drinking back to aiming
+      isDrinking = false;
+      hideDrinkingUI();
+
+      // Hide bottle, show javelin
+      if (armGroup) {
+        armGroup.visible = true;
+        const bottle = armGroup.getObjectByName('bottleInHand');
+        if (bottle) bottle.visible = false;
+        const stick = armGroup.getObjectByName('stickInHand');
+        if (stick) stick.visible = true;
+      }
+
+      // Restore aim
+      aimPitch = preBottle2AimPitch;
+      aimYaw = preBottle2AimYaw;
+
+      gameState = STATES.AIMING;
+      document.getElementById('crosshair').style.display = '';
+      armAnimState = 'idle';
+      armAnimTime = 0;
+    } else if (gameState === STATES.AIMING && bottle2Available && !bottle2Completed) {
+      startRoundDrinking();
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'Space') {
+    if (gameState === STATES.DRINKING) {
+      isDrinking = false;
+      armAnimState = 'drinking_idle';
+      armAnimTime = 0;
+      return;
+    }
+    if (gameState === STATES.CHARGING) {
+      isCharging = false;
+      doThrow();
+    }
+  }
+});
+
+document.addEventListener('click', () => {
+  if (gameState === STATES.TITLE) {
+    showCharacterSelect();
+    return;
+  }
+
+  if (dialogueActive) {
+    skipOrAdvanceDialogue();
+    return;
+  }
+
+  if (gameState === STATES.PUKE_GAMEOVER) {
+    restartGame();
+    return;
+  }
+
+  if (gameState === STATES.BOTTLE2_GAMEOVER) {
+    restartGame();
+    return;
+  }
+
+  if (gameState === STATES.VICTORY) {
+    restartGame();
+    return;
+  }
+
+  if (gameState === STATES.DEFEAT) {
+    retryRound();
+    return;
+  }
+
+  if (document.getElementById('result-overlay').style.display === 'flex') {
+    if (gameState === STATES.DEFEAT) retryRound();
+    else restartGame();
+    return;
+  }
+
+  if ((gameState === STATES.AIMING || gameState === STATES.CHARGING) && !pointerLocked) {
+    requestPointerLock();
+  }
+});
+
+document.getElementById('bottle-toggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (gameState === STATES.DRINKING && bottleNumber === 2) {
+    // Toggle from drinking back to aiming
+    isDrinking = false;
+    hideDrinkingUI();
+
+    if (armGroup) {
+      armGroup.visible = true;
+      const bottle = armGroup.getObjectByName('bottleInHand');
+      if (bottle) bottle.visible = false;
+      const stick = armGroup.getObjectByName('stickInHand');
+      if (stick) stick.visible = true;
+    }
+
+    aimPitch = preBottle2AimPitch;
+    aimYaw = preBottle2AimYaw;
+
+    gameState = STATES.AIMING;
+    document.getElementById('crosshair').style.display = '';
+    armAnimState = 'idle';
+    armAnimTime = 0;
+  } else if (gameState === STATES.AIMING && bottle2Available && !bottle2Completed) {
+    startRoundDrinking();
+  }
+});
+
+// ============================================================
+// MOBILE TOUCH SUPPORT
+// ============================================================
+// Prevent default touch behaviors (scrolling/bouncing)
+document.addEventListener('touchmove', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'BUTTON') return;
+  e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchstart', (e) => {
+  const tag = e.target.tagName;
+  if (tag === 'INPUT' || tag === 'BUTTON') return;
+  e.preventDefault();
+}, { passive: false });
+
+if (isMobile) {
+  // Touch aiming
+  let aimTouchId = null;
+  let lastAimX = 0, lastAimY = 0;
+
+  const aimZone = document.getElementById('touch-aim-zone');
+
+  aimZone.addEventListener('touchstart', (e) => {
+    if (aimTouchId !== null) return;
+    const t = e.changedTouches[0];
+    aimTouchId = t.identifier;
+    lastAimX = t.clientX;
+    lastAimY = t.clientY;
+  });
+
+  aimZone.addEventListener('touchmove', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      const t = e.changedTouches[i];
+      if (t.identifier !== aimTouchId) continue;
+      if (gameState !== STATES.AIMING && gameState !== STATES.CHARGING) break;
+      const dx = t.clientX - lastAimX;
+      const dy = t.clientY - lastAimY;
+      const sensitivity = 0.3;
+      aimYaw = Math.max(-20, Math.min(20, aimYaw - dx * sensitivity));
+      aimPitch = Math.max(5, Math.min(55, aimPitch - dy * sensitivity));
+      lastAimX = t.clientX;
+      lastAimY = t.clientY;
+    }
+  });
+
+  aimZone.addEventListener('touchend', (e) => {
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === aimTouchId) {
+        aimTouchId = null;
+        break;
+      }
+    }
+  });
+  aimZone.addEventListener('touchcancel', () => { aimTouchId = null; });
+
+  // Touch drink button
+  const drinkBtn = document.getElementById('touch-drink-btn');
+  drinkBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    if (gameState !== STATES.DRINKING) return;
+    isDrinking = true;
+    armAnimState = 'drinking_active';
+    armAnimTime = 0;
+  });
+  drinkBtn.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    if (gameState !== STATES.DRINKING) return;
+    isDrinking = false;
+    armAnimState = 'drinking_idle';
+    armAnimTime = 0;
+  });
+  drinkBtn.addEventListener('touchcancel', () => {
+    isDrinking = false;
+    armAnimState = 'drinking_idle';
+    armAnimTime = 0;
+  });
+
+  // Touch throw button
+  const throwBtn = document.getElementById('touch-throw-btn');
+  throwBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    if (gameState === STATES.AIMING) {
+      gameState = STATES.CHARGING;
+      isCharging = true;
+      chargePower = 0;
+      chargeDirection = 1;
+      armAnimState = 'windup';
+      armAnimTime = 0;
+      document.getElementById('power-meter').style.display = 'block';
+    }
+  });
+  throwBtn.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    if (gameState === STATES.CHARGING) {
+      isCharging = false;
+      doThrow();
+    }
+  });
+  throwBtn.addEventListener('touchcancel', () => {
+    if (gameState === STATES.CHARGING) {
+      isCharging = false;
+      doThrow();
+    }
+  });
+}
+
+// Show/hide mobile controls based on game state
+function updateMobileControls() {
+  if (!isMobile) return;
+  const container = document.getElementById('mobile-controls');
+  const drinkBtn = document.getElementById('touch-drink-btn');
+  const throwBtn = document.getElementById('touch-throw-btn');
+  const aimZone = document.getElementById('touch-aim-zone');
+
+  if (gameState === STATES.DRINKING) {
+    container.style.display = 'block';
+    drinkBtn.style.display = 'flex';
+    throwBtn.style.display = 'none';
+    aimZone.style.display = 'none';
+  } else if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+    container.style.display = 'block';
+    drinkBtn.style.display = 'none';
+    throwBtn.style.display = 'flex';
+    aimZone.style.display = 'block';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================================
+// UPDATE LOOP
+// ============================================================
+function updateCharging(dt) {
+  if (!isCharging) return;
+
+  chargePower += chargeDirection * dt * 1.2;
+  if (chargePower >= 1) { chargePower = 1; chargeDirection = -1; }
+  if (chargePower <= 0) { chargePower = 0; chargeDirection = 1; }
+
+  document.getElementById('power-fill').style.height = (chargePower * 100) + '%';
+
+  // Audio tick
+  if (Math.random() < 0.1) playSound('charge', { power: chargePower });
+}
+
+function updateArmAnimation(dt, time) {
+  if (!armGroup) return;
+
+  const stick = armGroup.getObjectByName('stickInHand');
+  const upperArm = armGroup.getObjectByName('upperArm');
+  const forearm = armGroup.getObjectByName('forearm');
+  const hand = armGroup.getObjectByName('hand');
+
+  armAnimTime += dt;
+
+  // Breathing bob
+  const breath = Math.sin(time * 2) * 0.01;
+
+  switch (armAnimState) {
+    case 'idle':
+      armGroup.position.set(0.35, -0.3 + breath, -0.5);
+      armGroup.rotation.set(0, 0, 0);
+      if (upperArm) upperArm.rotation.set(0, 0, -0.2);
+      if (forearm) forearm.rotation.set(-0.3, 0, 0);
+      break;
+
+    case 'windup': {
+      const t = Math.min(armAnimTime / 0.4, 1);
+      // Arm pulls back
+      armGroup.position.set(
+        0.35 + t * 0.1,
+        -0.3 + breath + t * 0.15,
+        -0.5 + t * 0.3
+      );
+      armGroup.rotation.x = -t * 0.8;
+      if (upperArm) upperArm.rotation.z = -0.2 + t * 0.3;
+      break;
+    }
+
+    case 'release': {
+      const t = Math.min(armAnimTime / 0.2, 1);
+      // Fast forward whip
+      armGroup.position.set(
+        0.35 + 0.1 * (1 - t),
+        -0.3 + breath + 0.15 * (1 - t),
+        -0.5 + 0.3 - t * 0.6
+      );
+      armGroup.rotation.x = -0.8 + t * 1.2;
+
+      if (t >= 1) {
+        armAnimState = 'follow';
+        armAnimTime = 0;
+      }
+      break;
+    }
+
+    case 'follow': {
+      const t = Math.min(armAnimTime / 0.5, 1);
+      armGroup.position.set(
+        0.35,
+        -0.3 + breath,
+        -0.5 - 0.3 * (1 - t)
+      );
+      armGroup.rotation.x = 0.4 * (1 - t);
+      break;
+    }
+
+    case 'drinking_idle':
+      // Holds bottle at chest level
+      armGroup.position.set(0.3, -0.25 + breath, -0.45);
+      armGroup.rotation.set(-0.3, 0, 0);
+      if (upperArm) upperArm.rotation.set(0, 0, -0.15);
+      if (forearm) forearm.rotation.set(-0.4, 0, 0);
+      break;
+
+    case 'drinking_active': {
+      // Tilts arm up to bring bottle to mouth, shakes at high nausea
+      const shake = nauseaLevel > 0.5 ? Math.sin(time * 20) * nauseaLevel * 0.04 : 0;
+      armGroup.position.set(0.15 + shake, 0.05 + breath, -0.3);
+      armGroup.rotation.set(-1.2, 0.15, shake * 2);
+      if (upperArm) upperArm.rotation.set(0, 0, -0.05);
+      if (forearm) forearm.rotation.set(-0.8, 0, 0);
+      break;
+    }
+
+    case 'drinking_done': {
+      // Lowers bottle triumphantly
+      const t = Math.min(armAnimTime / 0.6, 1);
+      armGroup.position.set(0.35, -0.15 + breath - t * 0.15, -0.45);
+      armGroup.rotation.set(-0.3 * (1 - t), 0, 0);
+      break;
+    }
+  }
+}
+
+function updateCamera(dt, time) {
+  if (gameState === STATES.TITLE || gameState === STATES.CHARACTER_SELECT) {
+    // Slow pan around the forest
+    const panX = Math.sin(time * 0.1) * 5;
+    const panZ = Math.cos(time * 0.1) * 5 - 10;
+    camera.position.set(
+      panX,
+      getTerrainHeight(panX, panZ) + 2.5 + Math.sin(time * 0.15) * 0.3,
+      panZ
+    );
+    camera.lookAt(0, getTerrainHeight(0, -30) + 2, -30);
+    return;
+  }
+
+  if (gameState === STATES.CELEBRATION_CAMERA) {
+    celebrationAnimTime += dt;
+
+    const playerGround = new THREE.Vector3(PLAYER_POS.x, getTerrainHeight(0, 0), PLAYER_POS.z);
+
+    if (celebrationAnimTime < 1.4) {
+      // ASCENT: rise from first-person to bird's eye
+      const t = easeInOutCubic(celebrationAnimTime / 1.4);
+      camera.position.set(
+        PLAYER_POS.x + 2 * t,
+        PLAYER_POS.y + 30 * t,
+        PLAYER_POS.z + 3 * t
+      );
+      camera.lookAt(playerGround);
+
+    } else if (celebrationAnimTime < 4.1) {
+      // ORBIT: gentle arc at altitude showing forest/field/dome
+      const t = (celebrationAnimTime - 1.4) / 2.7;
+      const angle = t * Math.PI * 0.8;
+      camera.position.set(
+        PLAYER_POS.x + Math.sin(angle) * 10,
+        PLAYER_POS.y + 30 + Math.sin(t * Math.PI) * 3,
+        PLAYER_POS.z + Math.cos(angle) * 10 - 5
+      );
+      camera.lookAt(playerGround.x, playerGround.y, playerGround.z - 10);
+
+    } else if (celebrationAnimTime < CELEBRATION_DURATION) {
+      // DESCENT: return to first person
+      const t = easeInOutCubic((celebrationAnimTime - 4.1) / 1.4);
+      camera.position.set(
+        PLAYER_POS.x + 2 * (1 - t),
+        PLAYER_POS.y + 30 * (1 - t),
+        PLAYER_POS.z + 3 * (1 - t)
+      );
+      // Transition lookAt from ground to forward view
+      const lookY = playerGround.y * (1 - t) + PLAYER_POS.y * t;
+      const lookZ = playerGround.z * (1 - t) + (PLAYER_POS.z - 5) * t;
+      camera.lookAt(PLAYER_POS.x, lookY, lookZ);
+
+    } else {
+      // Animation complete
+      onCelebrationComplete();
+    }
+    return;
+  }
+
+  // Drinking states: first-person at PLAYER_POS, looking forward
+  if (gameState === STATES.DRINKING || gameState === STATES.DRINKING_INTRO ||
+      gameState === STATES.DRINKING_COMPLETE || gameState === STATES.PUKE_GAMEOVER ||
+      gameState === STATES.BOTTLE2_GAMEOVER) {
+    camera.position.copy(PLAYER_POS);
+    // Nausea wobble is applied in updateNauseaEffects() during DRINKING
+    if (gameState !== STATES.DRINKING) {
+      camera.rotation.set(0, 0, 0);
+    }
+    return;
+  }
+
+  if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+    camera.position.copy(PLAYER_POS);
+
+    // Apply aim rotation
+    const pitchRad = -aimPitch * Math.PI / 180 + Math.PI / 6;
+    const yawRad = aimYaw * Math.PI / 180;
+    camera.rotation.set(pitchRad, yawRad, 0, 'YXZ');
+
+    // Persistent wine wobble after drinking
+    if (wineWobbleIntensity > 0) {
+      camera.rotation.z += Math.sin(time * 1.8) * wineWobbleIntensity;
+      camera.rotation.x += Math.sin(time * 1.3) * wineWobbleIntensity * 0.5;
+    }
+    return;
+  }
+
+  if (gameState === STATES.FLIGHT && javelin) {
+    // Follow javelin
+    const followPos = javelin.position.clone().add(new THREE.Vector3(2, 3, 5));
+    camera.position.lerp(followPos, 0.05);
+    camera.lookAt(javelin.position);
+    return;
+  }
+
+  if (gameState === STATES.LANDED || gameState === STATES.RESULT) {
+    if (javelin) {
+      camera.lookAt(javelin.position);
+    }
+  }
+}
+
+function updateParticles(dt, time) {
+  // Falling leaves
+  if (leafParticles) {
+    const pos = leafParticles.geometry.attributes.position;
+    const vels = leafParticles.userData.velocities;
+    for (let i = 0; i < pos.count; i++) {
+      let x = pos.getX(i);
+      let y = pos.getY(i);
+      let z = pos.getZ(i);
+
+      // Flutter
+      const v = vels[i];
+      x += (v.x + Math.sin(time * v.speed + v.phase) * 0.3 + Math.cos(windAngle) * windSpeed * 0.05) * dt;
+      y += v.y * dt;
+      z += (v.z + Math.cos(time * v.speed + v.phase) * 0.2 + Math.sin(windAngle) * windSpeed * 0.05) * dt;
+
+      // Reset when below terrain
+      if (y < getTerrainHeight(x, z)) {
+        x = (Math.random() - 0.5) * 80;
+        y = 12 + Math.random() * 8;
+        z = (Math.random() - 0.5) * 80 - 20;
+      }
+
+      pos.setXYZ(i, x, y, z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // Wind particles
+  if (windParticles) {
+    const pos = windParticles.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      let x = pos.getX(i);
+      let y = pos.getY(i);
+      let z = pos.getZ(i);
+
+      x += Math.cos(windAngle) * windSpeed * 0.5 * dt;
+      z += Math.sin(windAngle) * windSpeed * 0.5 * dt;
+      y += Math.sin(time * 3 + i) * 0.02 * dt;
+
+      if (Math.abs(x) > 40 || Math.abs(z + 20) > 40) {
+        x = (Math.random() - 0.5) * 60;
+        z = (Math.random() - 0.5) * 60 - 20;
+        y = getTerrainHeight(x, z) + 0.2 + Math.random() * 1.5;
+      }
+
+      pos.setXYZ(i, x, y, z);
+    }
+    pos.needsUpdate = true;
+  }
+
+  // Birds
+  if (birdParticles) {
+    const pos = birdParticles.geometry.attributes.position;
+    const centers = birdParticles.userData.centers;
+    const phases = birdParticles.userData.phases;
+    for (let i = 0; i < pos.count; i++) {
+      const c = centers[i];
+      const p = phases[i];
+      const r = 3;
+      pos.setXYZ(i,
+        c.x + Math.sin(time * 0.5 + p) * r,
+        c.y + Math.sin(time * 0.3 + p * 2) * 0.5,
+        c.z + Math.cos(time * 0.5 + p) * r
+      );
+    }
+    pos.needsUpdate = true;
+  }
+}
+
+function startNPCWalkToPositions() {
+  npcIsWalking = true;
+  npcWalkProgress = 0;
+}
+
+function updateNPCWalk(dt, time) {
+  if (!npcIsWalking) return;
+  npcWalkProgress += dt / NPC_WALK_DURATION;
+  const t = Math.min(npcWalkProgress, 1);
+  const et = easeInOutCubic(t);
+
+  npcMeshes.forEach(npc => {
+    const gp = npc.userData.gatheredPos;
+    const fp = npc.userData.finalPos;
+    if (!gp || !fp) return;
+
+    const cx = gp.x + (fp.x - gp.x) * et;
+    const cz = gp.z + (fp.z - gp.z) * et;
+    const cy = getTerrainHeight(cx, cz);
+    npc.position.set(cx, cy, cz);
+    npc.userData.baseY = cy;
+
+    // Face walking direction
+    const dx = fp.x - gp.x;
+    const dz = fp.z - gp.z;
+    const walkRot = Math.atan2(dx, dz);
+    const finalRot = npc.userData.finalRotY;
+    if (t < 0.85) {
+      npc.rotation.y = walkRot;
+    } else {
+      const blend = (t - 0.85) / 0.15;
+      npc.rotation.y = walkRot + (finalRot - walkRot) * blend;
+    }
+
+    // Animate legs
+    const legL = npc.userData.legL;
+    const legR = npc.userData.legR;
+    if (legL) legL.rotation.x = Math.sin(time * 6) * 0.4;
+    if (legR) legR.rotation.x = -Math.sin(time * 6) * 0.4;
+  });
+
+  if (t >= 1) {
+    npcIsWalking = false;
+    // Reset leg rotations
+    npcMeshes.forEach(npc => {
+      if (npc.userData.legL) npc.userData.legL.rotation.x = 0;
+      if (npc.userData.legR) npc.userData.legR.rotation.x = 0;
+    });
+  }
+}
+
+function updateNPCs(dt, time) {
+  updateNPCWalk(dt, time);
+  npcMeshes.forEach(npc => {
+    // Weight shift idle
+    const phase = npc.userData.animPhase;
+    const baseY = npc.userData.baseY || 0;
+    npc.position.y = baseY + Math.sin(time * 1.2 + phase) * 0.02;
+
+    const armL = npc.userData.armL;
+    const armR = npc.userData.armR;
+
+    if (npc.userData.reactionTimer > 0) {
+      npc.userData.reactionTimer -= dt;
+      const reaction = npc.userData.reaction;
+
+      if (reaction === 'celebrate') {
+        if (armL) armL.rotation.z = 0.15 + Math.sin(time * 8) * 1.2;
+        if (armR) armR.rotation.z = -0.15 - Math.sin(time * 8 + 0.5) * 1.2;
+      } else if (reaction === 'clap') {
+        if (armL) armL.rotation.z = 0.15 + Math.sin(time * 6) * 0.5;
+        if (armR) armR.rotation.z = -0.15 - Math.sin(time * 6 + Math.PI) * 0.5;
+      } else if (reaction === 'headshake') {
+        npc.rotation.y += Math.sin(time * 6) * 0.02;
+      }
+    } else {
+      // Idle arm sway
+      if (armL) armL.rotation.z = 0.15 + Math.sin(time * 0.8 + phase) * 0.05;
+      if (armR) armR.rotation.z = -0.15 - Math.sin(time * 0.8 + phase + 1) * 0.05;
+    }
+  });
+}
+
+function updateShaders(time) {
+  if (treesInstanced && treesInstanced.material.uniforms) {
+    treesInstanced.material.uniforms.time.value = time;
+    treesInstanced.material.uniforms.windStr.value = windSpeed / 5;
+  }
+  if (treesInstanced && treesInstanced.userData.crownMesh) {
+    const crown = treesInstanced.userData.crownMesh;
+    if (crown.material.uniforms) {
+      crown.material.uniforms.time.value = time;
+      crown.material.uniforms.windStr.value = windSpeed / 5;
+    }
+  }
+  // Birch tree shaders
+  if (birchInstanced && birchInstanced.material.uniforms) {
+    birchInstanced.material.uniforms.time.value = time;
+    birchInstanced.material.uniforms.windStr.value = windSpeed / 5;
+  }
+  if (birchInstanced && birchInstanced.userData.crownMesh) {
+    const birchCrown = birchInstanced.userData.crownMesh;
+    if (birchCrown.material.uniforms) {
+      birchCrown.material.uniforms.time.value = time;
+      birchCrown.material.uniforms.windStr.value = windSpeed / 5;
+    }
+  }
+}
+
+function updateHUD() {
+  if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+    const round = ROUNDS[currentRound];
+    let infoHtml =
+      `Round ${currentRound + 1}: "${round.name}"<br>` +
+      `Target: ~${round.target}m<br>` +
+      `Best: ${bestDistances[currentRound] > 0 ? '~' + Math.round(bestDistances[currentRound]) + 'm' : '-'}`;
+
+    // Show bottle 2 progress during aiming
+    if (bottle2InProgress && !bottle2Completed) {
+      infoHtml += `<br>Bottle 2: ${Math.round(drinkProgress * 100)}%`;
+    }
+
+    document.getElementById('info-panel').innerHTML = infoHtml;
+    document.getElementById('wind-indicator').innerHTML = getWindDisplay();
+    document.getElementById('angle-display').textContent = `Angle: ${Math.round(aimPitch)}°`;
+
+    // Bottle toggle
+    const bottleToggle = document.getElementById('bottle-toggle');
+    if (bottle2Available && !bottle2Completed && gameState === STATES.AIMING) {
+      bottleToggle.style.display = 'flex';
+      bottleToggle.classList.remove('completed');
+      // Dynamic label
+      if (bottle2InProgress) {
+        document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDF77';
+        document.getElementById('bottle-toggle-label').textContent = isMobile ? 'DRINK' : 'DRINK (D)';
+      } else {
+        document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDF77';
+        document.getElementById('bottle-toggle-label').textContent = isMobile ? 'BOTTLE' : 'BOTTLE (D)';
+      }
+    } else if (bottle2Completed) {
+      bottleToggle.style.display = 'flex';
+      bottleToggle.classList.add('completed');
+    } else {
+      bottleToggle.style.display = 'none';
+    }
+  } else {
+    document.getElementById('angle-display').textContent = '';
+    // Keep bottle toggle visible during DRINKING for bottle 2
+    if (gameState === STATES.DRINKING && bottleNumber === 2) {
+      document.getElementById('bottle-toggle').style.display = 'flex';
+    } else if (gameState !== STATES.DRINKING) {
+      document.getElementById('bottle-toggle').style.display = 'none';
+    }
+  }
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function animate() {
+  requestAnimationFrame(animate);
+
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const time = clock.getElapsedTime();
+
+  // State updates
+  if (gameState === STATES.DRINKING) updateDrinking(dt, time);
+  if (gameState === STATES.CHARGING) updateCharging(dt);
+  if (gameState === STATES.FLIGHT) updateJavelinPhysics(dt);
+
+  // Nausea decays during non-drinking states when bottle 2 is in progress
+  if (bottle2InProgress && gameState !== STATES.DRINKING) {
+    nauseaLevel = Math.max(0, nauseaLevel - BOTTLE2_NAUSEA_DECAY_RATE * dt);
+  }
+
+  updateCamera(dt, time);
+  updateArmAnimation(dt, time);
+  updateParticles(dt, time);
+  updateNPCs(dt, time);
+  updateShaders(time);
+  updateDialogue(dt);
+  updateHUD();
+  updateMobileControls();
+
+  renderer.render(scene, camera);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+initScene();
+animate();
+
+// Mobile text overrides
+if (isMobile) {
+  document.getElementById('start-text').textContent = 'Tap to begin';
+  document.getElementById('dialogue-continue').textContent = 'Tap to continue';
+  document.querySelector('#puke-overlay p').textContent = 'Tap to try again...';
+}
+
+</script>
+</body>
+</html>
