@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Forest Javelin - Finnish Autumn Championship</title>
+<title>VKKK Simulator</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
@@ -59,6 +59,43 @@ canvas { display: block; }
   position: absolute; bottom: 0; width: 100%;
   background: linear-gradient(to top, #4a4, #aa4, #a44);
   transition: height 0.05s;
+}
+
+#speed-meter {
+  position: absolute; left: 40px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 200px; border: 2px solid rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.3); border-radius: 4px; overflow: hidden;
+  display: none;
+}
+#speed-fill {
+  position: absolute; bottom: 0; width: 100%;
+  background: linear-gradient(to top, #4a8, #8a4, #a84);
+  transition: height 0.05s;
+}
+#speed-label {
+  position: absolute; left: 36px; top: calc(50% + 110px);
+  color: rgba(255,255,255,0.6); font-size: 11px; letter-spacing: 1px;
+  display: none;
+}
+
+#run-instruction {
+  position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%);
+  color: rgba(255,255,255,0.8); font-size: 16px;
+  text-shadow: 1px 1px 3px #000; white-space: nowrap;
+  display: none;
+}
+
+#touch-run-btn {
+  position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%);
+  width: 120px; height: 80px; border-radius: 12px;
+  background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4);
+  color: #fff; font-family: 'Courier New', monospace; font-size: 13px;
+  display: none; align-items: center; justify-content: center; text-align: center;
+  pointer-events: all; touch-action: none; user-select: none;
+  -webkit-user-select: none; line-height: 1.3;
+}
+#touch-run-btn:active {
+  background: rgba(255,255,255,0.35); border-color: #d4a043;
 }
 
 #info-panel {
@@ -231,6 +268,46 @@ canvas { display: block; }
 #bottle-toggle-icon { font-size: 36px; }
 #bottle-toggle-label { color: #aaa; font-size: 11px; margin-top: 4px; letter-spacing: 1px; }
 
+/* Dice Result Overlay */
+#dice-result {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 25; pointer-events: none;
+  background: rgba(0,0,0,0.3);
+  transition: opacity 0.5s;
+}
+#dice-result.fade-out { opacity: 0; }
+.dice-container { display: flex; gap: 20px; }
+.die-face {
+  width: 120px; height: 120px;
+  background: #f5f5f0; border-radius: 12px;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 12px;
+  box-shadow: 4px 4px 12px rgba(0,0,0,0.5);
+}
+.die-face .dot {
+  width: 20px; height: 20px;
+  background: #222; border-radius: 50%;
+  align-self: center; justify-self: center;
+}
+.die-face .dot.hidden { visibility: hidden; }
+#mexico-text {
+  font-size: 4em; color: #ff4444; font-weight: bold;
+  text-shadow: 3px 3px 8px #000, 0 0 30px #ff6600;
+  margin-bottom: 20px; letter-spacing: 6px;
+  animation: mexicoPulse 0.5s infinite alternate;
+  display: none;
+}
+@keyframes mexicoPulse {
+  0% { transform: scale(1); color: #ff4444; }
+  100% { transform: scale(1.1); color: #ffaa00; }
+}
+#dice-throws-remaining {
+  color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 15px;
+  font-family: 'Courier New', monospace;
+}
+
 /* Mobile Controls */
 #mobile-controls {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -269,6 +346,8 @@ canvas { display: block; }
   #name-input { width: 200px; font-size: 1em; padding: 8px 12px; }
   #drink-meter, #nausea-meter { height: 150px; }
   #power-meter { height: 150px; }
+  #speed-meter { height: 150px; }
+  #run-instruction { font-size: 13px; bottom: 220px; }
 }
 
 </style>
@@ -276,8 +355,8 @@ canvas { display: block; }
 <body>
 
 <div id="title-screen">
-  <h1>FOREST JAVELIN</h1>
-  <h2>Finnish Autumn Championship</h2>
+  <h1>VKKK</h1>
+  <h2>Simulator</h2>
   <div class="start-text" id="start-text">Click to begin</div>
 </div>
 
@@ -316,6 +395,9 @@ canvas { display: block; }
 <div id="hud">
   <div id="crosshair"></div>
   <div id="power-meter"><div id="power-fill"></div></div>
+  <div id="speed-meter"><div id="speed-fill"></div></div>
+  <div id="speed-label">SPEED</div>
+  <div id="run-instruction"></div>
   <div id="info-panel"></div>
   <div id="wind-indicator"></div>
   <div id="distance-display"></div>
@@ -352,10 +434,20 @@ canvas { display: block; }
   <p>Click to try again...</p>
 </div>
 
+<div id="dice-result">
+  <div id="mexico-text">MEXICO!</div>
+  <div class="dice-container">
+    <div class="die-face" id="die-face-1"></div>
+    <div class="die-face" id="die-face-2"></div>
+  </div>
+  <div id="dice-throws-remaining"></div>
+</div>
+
 <div id="mobile-controls" style="display:none">
   <div id="touch-aim-zone"></div>
   <div id="touch-drink-btn">HOLD TO<br>DRINK</div>
   <div id="touch-throw-btn">HOLD TO<br>CHARGE</div>
+  <div id="touch-run-btn">HOLD TO<br>RUN</div>
 </div>
 
 <script type="importmap">
@@ -388,7 +480,9 @@ const STATES = {
   CELEBRATION_CAMERA: 'CELEBRATION_CAMERA',
   PUKE_GAMEOVER: 'PUKE_GAMEOVER',
   AIMING: 'AIMING',
+  RUN_UP: 'RUN_UP',
   CHARGING: 'CHARGING',
+  THROW_RELEASE: 'THROW_RELEASE',
   FLIGHT: 'FLIGHT',
   LANDED: 'LANDED',
   RESULT: 'RESULT',
@@ -407,12 +501,12 @@ let throwDistances = [];
 let isNaked = false;
 
 const ROUNDS = [
-  { name: "The Warm-Up", target: 30, windBase: 2, desc: "Friendly introduction" },
-  { name: "The Challenge", target: 38, windBase: 3, desc: "Face the local favorite" },
-  { name: "The Headwind", target: 42, windBase: 5, desc: "The wind picks up" },
-  { name: "The Gauntlet", target: 48, windBase: 6, desc: "Only the determined survive" },
-  { name: "The Legend", target: 55, windBase: 8, desc: "Challenge the forest champion" },
-  { name: "The Naked Truth", target: 60, windBase: 10, desc: "Nothing left to lose" }
+  { name: "Round 1", target: 30, windBase: 2, desc: "The first throw is usually the best one" },
+  { name: "Round 2", target: 38, windBase: 3, desc: "Don't forget to drink..." },
+  { name: "Round 3", target: 42, windBase: 5, desc: "Top 8?" },
+  { name: "Round 4", target: 48, windBase: 6, desc: "Second bottle starts to have an effect" },
+  { name: "Round 5", target: 55, windBase: 8, desc: "It's getting dark in here" },
+  { name: "Round 6", target: 60, windBase: 10, desc: "Time to be naked" }
 ];
 
 // Aim parameters
@@ -434,6 +528,7 @@ let javelinLanded = false;
 let javelinHitTree = false;
 let landedDistance = 0;
 let landedFoul = false;
+let landedDrunkFoul = false;
 
 // Arm
 let armGroup = null;
@@ -481,6 +576,34 @@ let preBottle2AimPitch = 35;
 let preBottle2AimYaw = 0;
 let bottle2InProgress = false;
 
+// Beer can
+let beerAvailable = false;
+let beerFinished = false;
+let beerDrinkProgress = 0;
+let beerBoostActive = false;
+let isDrinkingBeer = false;
+const BEER_DRINK_RATE = 0.25;
+const BEER_NAUSEA_BUILD = 0.10;
+const BEER_NAUSEA_DECAY = 0.08;
+const BEER_NAUSEA_ACCEL = 0.06;
+
+// Dice
+let diceAvailable = false;
+let diceThrowsRemaining = 3;
+let diceFlying = false;
+let diceLanded = false;
+let diceResultTimer = 0;
+let diceValues = [1, 1];
+let diceMeshes = [];
+let diceVelocities = [];
+let diceAngularVels = [];
+let mexicoActive = false;
+let fireworkParticles = null;
+let fireworkTimer = 0;
+
+// Item cycling
+let currentItemIndex = 0;
+
 const BOTTLE2_DRINK_RATE = 0.08;
 const BOTTLE2_NAUSEA_BUILD_RATE = 0.40;
 const BOTTLE2_NAUSEA_DECAY_RATE = 0.04;
@@ -494,6 +617,15 @@ const NPC_WALK_DURATION = 4.0;
 // Camera
 let PLAYER_POS = new THREE.Vector3(0, 1.7, 0);
 const THROW_DIR = new THREE.Vector3(0, 0, -1); // forward is -Z
+
+// Run-up
+let runUpSpeed = 0;          // 0–1 normalized
+let playerRunZ = 0;          // current Z during run
+let isRunning = false;        // W held?
+let playerBodyModel = null;   // 3rd person mesh
+let throwReleaseTimer = 0;    // timer for throw animation
+const RUN_START_Z = 8;       // start 8m behind origin
+const FOUL_LINE_Z = 1.0;     // existing pine root location
 
 // Dialogue system
 let dialogueQueue = [];
@@ -1049,7 +1181,7 @@ function initScene() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x7a9ab8);
 
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
+  camera = new THREE.PerspectiveCamera(118, window.innerWidth / window.innerHeight, 0.1, 500);
   camera.position.copy(PLAYER_POS);
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -1119,6 +1251,9 @@ function initScene() {
 
   // Pine root foul line
   createFoulLine();
+
+  // Chalk foul line marker
+  createFoulLineMarker();
 
   // Throwing boulder
   createThrowingBoulder();
@@ -1829,7 +1964,7 @@ function createThrowingBoulder() {
 
   const boulder = new THREE.Mesh(boulderGeo, boulderMat);
   const ty = getTerrainHeight(0, 0.5);
-  boulder.position.set(0, ty + 0.3, 0.5);
+  boulder.position.set(-2.4, ty + 0.3, -3.5);
   boulder.rotation.set(0.15, 0.4, 0.1); // Slight random tilt
   boulder.castShadow = true;
   boulder.receiveShadow = true;
@@ -1943,13 +2078,12 @@ function createHumanoid(color, headColor, options = {}) {
   legR.position.set(0.1, 0.35, 0);
   group.add(legR);
 
-  // Arms
-  const armGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.6, 5);
-  const armL = new THREE.Mesh(armGeo, bodyMat);
+  // Arms (invisible containers — keep for animation targets and javelin parenting)
+  const armL = new THREE.Object3D();
   armL.position.set(-0.3, 1.1, 0);
   armL.rotation.z = 0.15;
   group.add(armL);
-  const armR = new THREE.Mesh(armGeo, bodyMat);
+  const armR = new THREE.Object3D();
   armR.position.set(0.3, 1.1, 0);
   armR.rotation.z = -0.15;
   group.add(armR);
@@ -2128,42 +2262,317 @@ function createBirdParticles() {
 function createPlayerArm() {
   armGroup = new THREE.Group();
 
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.7 });
-  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x4a6a4a, roughness: 0.8 });
+  // Materials — blue jacket sleeve, warm skin, subtle nail
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xd4a574, roughness: 0.6, metalness: 0.05 });
+  const skinDarkMat = new THREE.MeshStandardMaterial({ color: 0xc49464, roughness: 0.65, metalness: 0.05 });
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: 0x4a6fa0, roughness: 0.75 });
+  const sleeveCuffMat = new THREE.MeshStandardMaterial({ color: 0x3d5c85, roughness: 0.8 });
+  const nailMat = new THREE.MeshStandardMaterial({ color: 0xf0c8b0, roughness: 0.3, metalness: 0.1 });
 
-  // Upper arm
-  const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.35, 6), sleeveMat);
-  upperArm.position.set(0, -0.15, 0);
+  // --- UPPER ARM (blue jacket sleeve) ---
+  const upperArm = new THREE.Group();
   upperArm.name = 'upperArm';
 
-  // Forearm
-  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.3, 6), skinMat);
-  forearm.position.set(0, -0.32, 0.05);
+  // Shoulder cap
+  const shoulderCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.065, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    sleeveMat
+  );
+  shoulderCap.position.set(0, 0.02, 0);
+  upperArm.add(shoulderCap);
+
+  // Main upper arm cylinder
+  const upperArmMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055, 0.06, 0.38, 12),
+    sleeveMat
+  );
+  upperArmMesh.position.set(0, -0.17, 0);
+  upperArm.add(upperArmMesh);
+
+  // Sleeve cuff at elbow
+  const cuff = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.062, 0.058, 0.04, 12),
+    sleeveCuffMat
+  );
+  cuff.position.set(0, -0.36, 0);
+  upperArm.add(cuff);
+
+  // Sleeve fold detail
+  const fold1 = new THREE.Mesh(
+    new THREE.TorusGeometry(0.058, 0.005, 6, 12),
+    sleeveCuffMat
+  );
+  fold1.position.set(0, -0.34, 0);
+  fold1.rotation.x = Math.PI / 2;
+  upperArm.add(fold1);
+
+  upperArm.position.set(0, -0.15, 0);
+
+  // --- ELBOW JOINT ---
+  const elbow = new THREE.Mesh(
+    new THREE.SphereGeometry(0.05, 10, 10),
+    skinMat
+  );
+  elbow.name = 'elbow';
+  elbow.position.set(0, -0.38, 0.02);
+  elbow.scale.set(1, 0.85, 1.1);
+  armGroup.add(elbow);
+
+  // --- FOREARM (exposed skin) ---
+  const forearm = new THREE.Group();
   forearm.name = 'forearm';
 
-  // Hand
-  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), skinMat);
-  hand.position.set(0, -0.48, 0.1);
+  // Main forearm — tapered, slightly wider near elbow
+  const forearmMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.048, 0.32, 12),
+    skinMat
+  );
+  forearmMesh.position.set(0, -0.14, 0);
+  forearm.add(forearmMesh);
+
+  // Subtle muscle bulge on forearm
+  const muscleBulge = new THREE.Mesh(
+    new THREE.SphereGeometry(0.03, 8, 8),
+    skinMat
+  );
+  muscleBulge.position.set(0.015, -0.08, -0.015);
+  muscleBulge.scale.set(1.2, 1.8, 0.8);
+  forearm.add(muscleBulge);
+
+  // Wrist — narrower
+  const wrist = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.035, 0.06, 10),
+    skinMat
+  );
+  wrist.position.set(0, -0.31, 0.02);
+  forearm.add(wrist);
+
+  // Wrist bone bumps (ulna/radius)
+  const wristBoneL = new THREE.Mesh(
+    new THREE.SphereGeometry(0.012, 6, 6),
+    skinDarkMat
+  );
+  wristBoneL.position.set(-0.03, -0.3, 0.02);
+  forearm.add(wristBoneL);
+  const wristBoneR = new THREE.Mesh(
+    new THREE.SphereGeometry(0.01, 6, 6),
+    skinDarkMat
+  );
+  wristBoneR.position.set(0.03, -0.3, 0.02);
+  forearm.add(wristBoneR);
+
+  forearm.position.set(0, -0.32, 0.05);
+
+  // --- HAND (gripping pose — fingers wrap around held object) ---
+  const hand = new THREE.Group();
   hand.name = 'hand';
 
-  // Javelin in hand (will be toggled)
+  // Grip center — where the held object's shaft sits
+  const gripY = 0;
+  const gripZ = 0;
+  const gripRadius = 0.035; // radius of the cylindrical grip space
+
+  // Palm — behind the grip, slightly cupped
+  const palm = new THREE.Mesh(
+    new THREE.BoxGeometry(0.09, 0.11, 0.03),
+    skinMat
+  );
+  palm.position.set(0, gripY, gripZ - 0.04);
+  hand.add(palm);
+
+  // Palm pad (fleshy inner surface facing object)
+  const palmPad = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.09, 0.012),
+    skinDarkMat
+  );
+  palmPad.position.set(0, gripY, gripZ - 0.02);
+  hand.add(palmPad);
+
+  // Knuckle ridge across top of palm
+  for (let i = 0; i < 4; i++) {
+    const knuckle = new THREE.Mesh(
+      new THREE.SphereGeometry(0.014, 8, 8),
+      skinDarkMat
+    );
+    knuckle.position.set(-0.03 + i * 0.02, gripY + 0.055, gripZ - 0.03);
+    hand.add(knuckle);
+  }
+
+  // Helper: create a curling finger segment along an arc
+  function createGripFinger(totalLen, baseR, tipR, curlAngle) {
+    const finger = new THREE.Group();
+    const segments = 3;
+    const segLens = [totalLen * 0.45, totalLen * 0.3, totalLen * 0.25];
+    const segRadii = [
+      [baseR, baseR * 0.9],
+      [baseR * 0.9, tipR + 0.002],
+      [tipR + 0.002, tipR * 0.8]
+    ];
+    const curlPerSeg = curlAngle / segments;
+
+    let cursor = new THREE.Group();
+    finger.add(cursor);
+
+    for (let s = 0; s < segments; s++) {
+      // Segment cylinder
+      const seg = new THREE.Mesh(
+        new THREE.CylinderGeometry(segRadii[s][1], segRadii[s][0], segLens[s], 8),
+        skinMat
+      );
+      seg.position.set(0, segLens[s] / 2, 0);
+      cursor.add(seg);
+
+      // Joint sphere between segments
+      if (s < segments - 1) {
+        const joint = new THREE.Mesh(
+          new THREE.SphereGeometry(segRadii[s][1] * 1.05, 6, 6),
+          skinDarkMat
+        );
+        joint.position.set(0, segLens[s], 0);
+        cursor.add(joint);
+      }
+
+      // Fingernail on last segment
+      if (s === segments - 1) {
+        const nail = new THREE.Mesh(
+          new THREE.BoxGeometry(tipR * 2.0, segLens[s] * 0.45, 0.005),
+          nailMat
+        );
+        nail.position.set(0, segLens[s] * 0.7, -tipR * 0.7);
+        cursor.add(nail);
+      }
+
+      // Advance cursor — rotate to curl, then move to end of segment
+      if (s < segments - 1) {
+        const nextCursor = new THREE.Group();
+        nextCursor.position.set(0, segLens[s], 0);
+        nextCursor.rotation.x = curlPerSeg;
+        cursor.add(nextCursor);
+        cursor = nextCursor;
+      }
+    }
+
+    return finger;
+  }
+
+  // Four fingers — positioned at knuckles, curling forward and around grip
+  const fingerSpecs = [
+    { x: -0.03, len: 0.09, baseR: 0.012, tipR: 0.009, curl: 2.6 },   // index
+    { x: -0.01, len: 0.10, baseR: 0.012, tipR: 0.009, curl: 2.7 },   // middle
+    { x:  0.01, len: 0.09, baseR: 0.012, tipR: 0.009, curl: 2.7 },   // ring
+    { x:  0.028, len: 0.075, baseR: 0.010, tipR: 0.008, curl: 2.8 }, // pinky
+  ];
+
+  fingerSpecs.forEach((spec, i) => {
+    const finger = createGripFinger(spec.len, spec.baseR, spec.tipR, spec.curl);
+    // Start from knuckle row, pointing up, then curling over and around
+    finger.position.set(spec.x, gripY + 0.055, gripZ - 0.03);
+    // Initial angle: fingers point forward-up then curl over the object
+    finger.rotation.x = -0.3;
+    finger.rotation.z = (i - 1.5) * 0.02;
+    hand.add(finger);
+  });
+
+  // Thumb — on the left side (near side), opposing the fingers
+  const thumb = new THREE.Group();
+
+  const thumbMetacarpal = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016, 0.019, 0.05, 8),
+    skinMat
+  );
+  thumbMetacarpal.position.set(0, 0.025, 0);
+  thumb.add(thumbMetacarpal);
+
+  const thumbJoint1 = new THREE.Mesh(
+    new THREE.SphereGeometry(0.016, 6, 6),
+    skinDarkMat
+  );
+  thumbJoint1.position.set(0, 0.05, 0);
+  thumb.add(thumbJoint1);
+
+  const thumbProximal = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.014, 0.016, 0.04, 8),
+    skinMat
+  );
+  thumbProximal.position.set(0, 0.075, 0.01);
+  thumbProximal.rotation.x = 0.3;
+  thumb.add(thumbProximal);
+
+  const thumbJoint2 = new THREE.Mesh(
+    new THREE.SphereGeometry(0.013, 6, 6),
+    skinDarkMat
+  );
+  thumbJoint2.position.set(0, 0.095, 0.02);
+  thumb.add(thumbJoint2);
+
+  const thumbDistal = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.011, 0.014, 0.03, 8),
+    skinMat
+  );
+  thumbDistal.position.set(0, 0.115, 0.035);
+  thumbDistal.rotation.x = 0.5;
+  thumb.add(thumbDistal);
+
+  const thumbNail = new THREE.Mesh(
+    new THREE.BoxGeometry(0.016, 0.018, 0.005),
+    nailMat
+  );
+  thumbNail.position.set(0, 0.13, 0.03);
+  thumb.add(thumbNail);
+
+  // Position thumb: left side of palm, angled to press against object
+  thumb.position.set(-0.055, gripY - 0.03, gripZ - 0.01);
+  thumb.rotation.set(0.2, 0, 0.8);
+  hand.add(thumb);
+
+  // Thenar eminence (fleshy thumb-side pad)
+  const thenar = new THREE.Mesh(
+    new THREE.SphereGeometry(0.025, 8, 8),
+    skinMat
+  );
+  thenar.position.set(-0.04, gripY - 0.01, gripZ - 0.03);
+  thenar.scale.set(0.8, 1.2, 0.7);
+  hand.add(thenar);
+
+  // Position hand at grip point on the arm, palm facing left (natural right-hand grip)
+  hand.position.set(0, -0.48, 0.1);
+  hand.rotation.y = Math.PI / 2;
+
+  // --- JAVELIN in hand (will be toggled) ---
   const stickInHand = createJavelinMesh();
   stickInHand.name = 'stickInHand';
   stickInHand.rotation.x = Math.PI / 2;
   stickInHand.position.set(0, -0.48, 0.1);
   stickInHand.scale.set(0.5, 0.5, 0.5);
 
-  // Bottle in hand (for drinking minigame, hidden by default)
+  // --- BOTTLE in hand (child of hand group, hidden by default) ---
   const bottleInHand = createBottleMesh();
   bottleInHand.name = 'bottleInHand';
-  bottleInHand.position.set(0, -0.42, 0.1);
+  bottleInHand.position.set(0, -0.1, 0); // centered in hand grip
+  bottleInHand.rotation.y = 0.4; // tilt cap toward mouth, bottom faces forward
   bottleInHand.visible = false;
+  hand.add(bottleInHand); // bottle moves with hand as one unit
 
+  // --- BEER CAN in hand (hidden by default) ---
+  const beerCanInHand = createBeerCanMesh();
+  beerCanInHand.name = 'beerCanInHand';
+  beerCanInHand.position.set(0, -0.1, 0);
+  beerCanInHand.rotation.y = 0.4;
+  beerCanInHand.visible = false;
+  hand.add(beerCanInHand);
+
+  // --- DICE in hand (hidden by default) ---
+  const diceInHand = createDiceInHandMesh();
+  diceInHand.name = 'diceInHand';
+  diceInHand.position.set(0, -0.1, 0);
+  diceInHand.visible = false;
+  hand.add(diceInHand);
+
+  // Assemble
   armGroup.add(upperArm);
   armGroup.add(forearm);
   armGroup.add(hand);
   armGroup.add(stickInHand);
-  armGroup.add(bottleInHand);
 
   // Position relative to camera
   armGroup.position.set(0.35, -0.3, -0.5);
@@ -2219,54 +2628,195 @@ function createJavelinMesh() {
 function createBottleMesh() {
   const group = new THREE.Group();
 
-  // Amber PET plastic body (semi-transparent)
+  // Large PET plastic body (semi-transparent amber)
   const bodyMat = new THREE.MeshStandardMaterial({
-    color: 0xddcc66, roughness: 0.3, metalness: 0.1,
-    transparent: true, opacity: 0.65
+    color: 0xddcc66, roughness: 0.25, metalness: 0.05,
+    transparent: true, opacity: 0.7
   });
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.032, 0.035, 0.28, 8),
-    bodyMat
-  );
-  body.position.y = 0.14;
+
+  // PET bottle shape via LatheGeometry (rounder, bulbous profile)
+  const pts = [
+    new THREE.Vector2(0, 0),        // bottom center
+    new THREE.Vector2(0.04, 0.01),  // bottom edge
+    new THREE.Vector2(0.048, 0.06), // lower bulge
+    new THREE.Vector2(0.05, 0.16),  // widest point
+    new THREE.Vector2(0.048, 0.26), // upper bulge
+    new THREE.Vector2(0.035, 0.30), // shoulder
+    new THREE.Vector2(0.018, 0.34), // neck base
+    new THREE.Vector2(0.016, 0.38), // neck top
+    new THREE.Vector2(0, 0.38),     // top center
+  ];
+  const bodyGeo = new THREE.LatheGeometry(pts, 12);
+  bodyMat.side = THREE.DoubleSide;
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
   group.add(body);
 
-  // Narrow neck
-  const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.015, 0.025, 0.1, 8),
-    bodyMat
-  );
-  neck.position.y = 0.33;
-  group.add(neck);
-
-  // White plastic screw cap
+  // Green screw cap
   const cap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.017, 0.017, 0.02, 8),
-    new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.8, metalness: 0.0 })
+    new THREE.CylinderGeometry(0.019, 0.019, 0.025, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2a8a2a, roughness: 0.7, metalness: 0.0 })
   );
-  cap.position.y = 0.39;
+  cap.position.y = 0.395;
   group.add(cap);
 
-  // Green label band (apple theme)
+  // Green label band (prominent, apple theme)
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 0.8 });
   const label = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.036, 0.036, 0.1, 8),
-    new THREE.MeshStandardMaterial({ color: 0x3a7a2a, roughness: 0.8 })
+    new THREE.CylinderGeometry(0.052, 0.052, 0.14, 10),
+    labelMat
   );
-  label.position.y = 0.14;
+  label.position.y = 0.16;
   group.add(label);
 
-  // Inner wine level mesh (amber liquid)
+  // Thin accent stripe above label
+  const stripe = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.051, 0.051, 0.015, 10),
+    new THREE.MeshStandardMaterial({ color: 0x5aaa4a, roughness: 0.8 })
+  );
+  stripe.position.y = 0.245;
+  group.add(stripe);
+
+  // Inner wine level mesh (golden amber liquid)
   const wineLevelMat = new THREE.MeshStandardMaterial({
     color: 0xcc8800, roughness: 0.3, transparent: true, opacity: 0.7
   });
   const wineLevel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.029, 0.032, 0.25, 8),
+    new THREE.CylinderGeometry(0.042, 0.045, 0.28, 8),
     wineLevelMat
   );
-  wineLevel.position.y = 0.125;
+  wineLevel.position.y = 0.14;
   wineLevel.name = 'wineLevel';
   group.add(wineLevel);
 
+  return group;
+}
+
+// ============================================================
+// BEER CAN MESH
+// ============================================================
+function createBeerCanMesh() {
+  const group = new THREE.Group();
+
+  // Can body — blue cylinder
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2255aa, roughness: 0.4, metalness: 0.6 });
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 0.12, 12),
+    bodyMat
+  );
+  body.position.y = 0.06;
+  group.add(body);
+
+  // Silver top rim
+  const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.8 });
+  const topRim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.031, 0.031, 0.008, 12),
+    rimMat
+  );
+  topRim.position.y = 0.124;
+  group.add(topRim);
+
+  // Silver bottom rim
+  const bottomRim = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.031, 0.031, 0.008, 12),
+    rimMat
+  );
+  bottomRim.position.y = 0.004;
+  group.add(bottomRim);
+
+  // Pull tab on top
+  const tabMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.3, metalness: 0.7 });
+  const tab = new THREE.Mesh(
+    new THREE.BoxGeometry(0.012, 0.002, 0.02),
+    tabMat
+  );
+  tab.position.set(0, 0.13, 0);
+  group.add(tab);
+
+  // Label stripe (lighter blue band)
+  const labelMat = new THREE.MeshStandardMaterial({ color: 0x4488cc, roughness: 0.5, metalness: 0.5 });
+  const label = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.0305, 0.0305, 0.04, 12),
+    labelMat
+  );
+  label.position.y = 0.06;
+  group.add(label);
+
+  // Inner beer level mesh (golden liquid)
+  const beerLevelMat = new THREE.MeshStandardMaterial({
+    color: 0xddaa22, roughness: 0.3, transparent: true, opacity: 0.7
+  });
+  const beerLevel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.026, 0.026, 0.10, 8),
+    beerLevelMat
+  );
+  beerLevel.position.y = 0.055;
+  beerLevel.name = 'beerLevel';
+  group.add(beerLevel);
+
+  return group;
+}
+
+// ============================================================
+// DICE MESHES
+// ============================================================
+function createDieMesh() {
+  const group = new THREE.Group();
+
+  // White cube
+  const cubeMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f0, roughness: 0.6 });
+  const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.08, 0.08),
+    cubeMat
+  );
+  group.add(cube);
+
+  // Add dots as small dark spheres on faces
+  const dotMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+  const dotGeo = new THREE.SphereGeometry(0.006, 6, 6);
+  const r = 0.041; // just outside face
+  const s = 0.02;  // dot spacing from center on face
+
+  // Face patterns: [faceNormal, dotPositions]
+  // We'll add all 6 faces with standard die layout (opposite faces sum to 7)
+  const faces = [
+    // 1 (front +Z): center
+    { normal: [0,0,r], up: [0,1,0], right: [1,0,0], dots: [[0,0]] },
+    // 6 (back -Z): 2x3 grid
+    { normal: [0,0,-r], up: [0,1,0], right: [-1,0,0], dots: [[-s,s],[0,s],[s,s],[-s,-s],[0,-s],[s,-s]] },
+    // 2 (right +X): diagonal
+    { normal: [r,0,0], up: [0,1,0], right: [0,0,-1], dots: [[-s,s],[s,-s]] },
+    // 5 (left -X): X pattern
+    { normal: [-r,0,0], up: [0,1,0], right: [0,0,1], dots: [[-s,s],[s,s],[0,0],[-s,-s],[s,-s]] },
+    // 3 (top +Y): diagonal + center
+    { normal: [0,r,0], up: [0,0,-1], right: [1,0,0], dots: [[-s,s],[0,0],[s,-s]] },
+    // 4 (bottom -Y): corners
+    { normal: [0,-r,0], up: [0,0,1], right: [1,0,0], dots: [[-s,s],[s,s],[-s,-s],[s,-s]] },
+  ];
+
+  faces.forEach(f => {
+    const n = new THREE.Vector3(...f.normal);
+    const up = new THREE.Vector3(...f.up);
+    const right = new THREE.Vector3(...f.right);
+    f.dots.forEach(([u, v]) => {
+      const dot = new THREE.Mesh(dotGeo, dotMat);
+      dot.position.copy(n).add(right.clone().multiplyScalar(u)).add(up.clone().multiplyScalar(v));
+      group.add(dot);
+    });
+  });
+
+  return group;
+}
+
+function createDiceInHandMesh() {
+  const group = new THREE.Group();
+  const die1 = createDieMesh();
+  die1.position.set(-0.03, 0, 0);
+  die1.rotation.set(0.3, 0.2, 0.1);
+  group.add(die1);
+  const die2 = createDieMesh();
+  die2.position.set(0.03, 0, 0);
+  die2.rotation.set(-0.2, 0.4, -0.1);
+  group.add(die2);
   return group;
 }
 
@@ -2289,6 +2839,227 @@ function spawnJavelin(pos, vel) {
   javelinFlying = true;
   javelinLanded = false;
   javelinHitTree = false;
+}
+
+// ============================================================
+// PLAYER BODY MODEL (3rd person)
+// ============================================================
+function createPlayerBody() {
+  playerBodyModel = createHumanoid(playerJacketColor, undefined, {
+    beanieColor: playerBeanieColor,
+    stripeColor: 0xdddddd
+  });
+
+  // Attach a javelin mesh to the right hand
+  const jav = createJavelinMesh();
+  jav.scale.set(0.9, 0.9, 0.9);
+  jav.rotation.set(0, 0, Math.PI / 2);
+  jav.position.set(0, 0.7, -0.15);
+  jav.name = 'bodyJavelin';
+  const armR = playerBodyModel.userData.armR;
+  if (armR) armR.add(jav);
+
+  playerBodyModel.visible = false;
+  scene.add(playerBodyModel);
+}
+
+function updatePlayerBodyColors() {
+  if (!playerBodyModel) return;
+  const color = isNaked ? 0xd4a574 : playerJacketColor;
+  // The body mesh (y~1.1) and arm meshes share the same bodyMat created in createHumanoid.
+  // Find the body cylinder and update its material color — this propagates to arms too.
+  const children = playerBodyModel.children;
+  for (const child of children) {
+    if (child.isMesh && child.geometry) {
+      // Body at y=1.1, arms at y=1.1 — all share bodyMat
+      if (child.position.y > 0.9 && child.position.y < 1.2) {
+        child.material.color.setHex(color);
+        break; // bodyMat is shared, one update is enough
+      }
+    }
+  }
+}
+
+// ============================================================
+// FOUL LINE CHALK MARKER
+// ============================================================
+function createFoulLineMarker() {
+  const chalkMat = new THREE.MeshStandardMaterial({
+    color: 0xeeeeee,
+    roughness: 0.95,
+    transparent: true,
+    opacity: 0.6
+  });
+
+  // Chalk line on ground at Z = FOUL_LINE_Z
+  const lineGeo = new THREE.PlaneGeometry(5, 0.08);
+  const chalkLine = new THREE.Mesh(lineGeo, chalkMat);
+  const ty = getTerrainHeight(0, FOUL_LINE_Z);
+  chalkLine.position.set(0, ty + 0.02, FOUL_LINE_Z);
+  chalkLine.rotation.x = -Math.PI / 2;
+  scene.add(chalkLine);
+
+  // Small dashes to make it look hand-drawn
+  for (let i = 0; i < 6; i++) {
+    const dx = -2.2 + i * 0.9;
+    const dashGeo = new THREE.PlaneGeometry(0.3, 0.04);
+    const dash = new THREE.Mesh(dashGeo, chalkMat);
+    const dy = getTerrainHeight(dx, FOUL_LINE_Z - 0.15);
+    dash.position.set(dx, dy + 0.02, FOUL_LINE_Z - 0.15);
+    dash.rotation.x = -Math.PI / 2;
+    dash.rotation.z = (Math.random() - 0.5) * 0.2;
+    scene.add(dash);
+  }
+}
+
+// ============================================================
+// RUN-UP MECHANICS
+// ============================================================
+function updateRunUp(dt) {
+  if (gameState !== STATES.RUN_UP && gameState !== STATES.CHARGING) return;
+
+  // Exponential acceleration: starts slow, gets much faster near foul line
+  // runUpSpeed is raw 0–1 input level; actual movement uses exponential curve
+  if (isRunning) {
+    runUpSpeed = Math.min(1.0, runUpSpeed + 0.7 * dt);
+  } else {
+    runUpSpeed = Math.max(0, runUpSpeed - 0.5 * dt);
+  }
+
+  // Exponential movement: speed² gives slow start, fast finish
+  const moveSpeed = runUpSpeed * runUpSpeed * 12;
+  playerRunZ -= moveSpeed * dt;
+
+  // Foul line check
+  if (playerRunZ < FOUL_LINE_Z) {
+    triggerFoulLineViolation();
+    return;
+  }
+
+  // Update body model position
+  if (playerBodyModel) {
+    const groundY = getTerrainHeight(0, playerRunZ);
+    playerBodyModel.position.set(0, groundY, playerRunZ);
+    playerBodyModel.rotation.y = Math.PI; // face forward (-Z)
+  }
+
+  // Update speed meter (show exponential feel)
+  document.getElementById('speed-fill').style.height = (runUpSpeed * runUpSpeed * 100) + '%';
+}
+
+function updatePlayerBodyAnimation(dt, time) {
+  if (!playerBodyModel || !playerBodyModel.visible) return;
+
+  const legL = playerBodyModel.userData.legL;
+  const legR = playerBodyModel.userData.legR;
+  const armL = playerBodyModel.userData.armL;
+  const armR = playerBodyModel.userData.armR;
+
+  if (gameState === STATES.RUN_UP) {
+    // Running animation — use exponential speed for visual feel
+    const speed = runUpSpeed * runUpSpeed;
+    const freq = 6 + speed * 10; // faster legs at higher speed
+    const amp = 0.2 + speed * 0.7;
+
+    // Legs swing
+    if (legL) legL.rotation.x = Math.sin(time * freq) * amp;
+    if (legR) legR.rotation.x = -Math.sin(time * freq) * amp;
+
+    // Left arm pumps (right arm holds javelin back)
+    if (armL) {
+      armL.rotation.x = -Math.sin(time * freq) * amp * 0.6;
+      armL.rotation.z = 0.15;
+    }
+    if (armR) {
+      // Hold javelin back during run
+      armR.rotation.x = -0.8 - speed * 0.4;
+      armR.rotation.z = -0.3;
+    }
+
+    // Body bob
+    const bobAmt = speed * 0.06;
+    const groundY = getTerrainHeight(0, playerRunZ);
+    playerBodyModel.position.y = groundY + Math.abs(Math.sin(time * freq)) * bobAmt;
+
+  } else if (gameState === STATES.CHARGING) {
+    if (isRunning) {
+      // Running while charging — keep legs moving, only change arms to windup
+      const speed = runUpSpeed * runUpSpeed;
+      const freq = 6 + speed * 10;
+      const amp = 0.2 + speed * 0.7;
+      if (legL) legL.rotation.x = Math.sin(time * freq) * amp;
+      if (legR) legR.rotation.x = -Math.sin(time * freq) * amp;
+      const bobAmt = speed * 0.06;
+      const groundY = getTerrainHeight(0, playerRunZ);
+      playerBodyModel.position.y = groundY + Math.abs(Math.sin(time * freq)) * bobAmt;
+    } else {
+      // Standing throw — planted legs
+      if (legL) legL.rotation.x = 0.2;
+      if (legR) legR.rotation.x = -0.3;
+    }
+    if (armL) {
+      armL.rotation.x = 0.3;
+      armL.rotation.z = 0.3;
+    }
+    if (armR) {
+      // Pull back further as charge increases
+      armR.rotation.x = -1.2 - chargePower * 0.6;
+      armR.rotation.z = -0.3;
+    }
+
+  } else if (gameState === STATES.THROW_RELEASE) {
+    // Throw animation: arm whips forward
+    const t = Math.min(throwReleaseTimer / 0.5, 1);
+    if (armR) {
+      armR.rotation.x = -1.8 + t * 3.0; // from far back to far forward
+      armR.rotation.z = -0.3 + t * 0.2;
+    }
+    if (armL) {
+      armL.rotation.x = 0.3 - t * 0.5;
+      armL.rotation.z = 0.3 + t * 0.3;
+    }
+    // Lunge forward
+    if (legL) legL.rotation.x = 0.2 + t * 0.4;
+    if (legR) legR.rotation.x = -0.3 - t * 0.3;
+
+    // Hide javelin from hand at release point (t=0.6 of animation = 0.3s)
+    if (t > 0.6) {
+      const bodyJav = armR ? armR.getObjectByName('bodyJavelin') : null;
+      if (bodyJav) bodyJav.visible = false;
+    }
+  }
+}
+
+function triggerFoulLineViolation() {
+  landedFoul = true;
+  javelinFlying = false;
+  javelinLanded = true;
+  javelinHitTree = false;
+  landedDistance = 0;
+
+  // Hide run-up UI
+  document.getElementById('speed-meter').style.display = 'none';
+  document.getElementById('speed-label').style.display = 'none';
+  document.getElementById('run-instruction').style.display = 'none';
+
+  // Hide body model
+  if (playerBodyModel) playerBodyModel.visible = false;
+  if (armGroup) armGroup.visible = false;
+
+  playSound('impact');
+
+  // Go through LANDED → RESULT using existing flow
+  gameState = STATES.LANDED;
+
+  // Brief delay, then show foul line result using existing showLandedResult
+  // Override the foul text after it runs
+  setTimeout(() => {
+    showLandedResult();
+    // Override the foul text to specify foul line
+    const distEl = document.getElementById('distance-display');
+    distEl.innerHTML = 'FOUL!<span class="sub">Crossed the foul line!</span>';
+    showDialogue('Coach Matti', 'You crossed the line! That\'s a foul, friend.');
+  }, 400);
 }
 
 // ============================================================
@@ -2437,7 +3208,7 @@ function getDefeatDialogue() {
 // ============================================================
 function getDrinkingIntroDialogue() {
   return [
-    { name: 'Coach Matti', text: 'Wait — before you throw, there is a tradition. Every competitor must first drink an entire bottle of Pohjolan Omenapuisto.' },
+    { name: 'Coach Matti', text: 'Wait — before you throw, there is a tradition. Every competitor must first drink an entire bottle of Helmeilevä Omenaviini.' },
     { name: 'Coach Matti', text: "It's apple wine. Strong stuff. The old champions swore it gave them power. Personally I think it just made them brave." },
     { name: 'Jukka', text: `Ha! Let's see if ${playerName} can even handle a whole bottle. My grandmother drinks faster than most people here.` },
     { name: 'Heikki', text: 'A word of advice — pace yourself. Drink too fast and your stomach will revolt. Nobody wants to see that.' },
@@ -2574,11 +3345,23 @@ function updateJavelinPhysics(dt) {
     const inSector = javelin.position.x > sectorLeft &&
                      javelin.position.x < sectorRight;
 
-    const foul = !tipDown || !inSector;
+    let foul = !tipDown || !inSector;
+    let drunkFoul = false;
+
+    // Drunk randomizer: wine impairs throw accuracy
+    // After bottle 1 (always true once throwing starts): 69% lawful
+    // After bottle 2: only 31% lawful
+    if (!foul) {
+      const lawfulChance = bottle2Completed ? 0.31 : 0.69;
+      if (Math.random() > lawfulChance) {
+        foul = true;
+        drunkFoul = true;
+      }
+    }
 
     javelin.position.y = terrainY + 0.1;
 
-    if (tipDown) {
+    if (tipDown && !drunkFoul) {
       // Stick it in the ground at an angle
       javelin.rotation.x = -Math.PI / 4;
     }
@@ -2586,20 +3369,20 @@ function updateJavelinPhysics(dt) {
     playSound('impact');
     if (!foul) playSound('cheer');
 
-    onJavelinLanded(foul);
+    onJavelinLanded(foul, drunkFoul);
   }
 }
 
-function onJavelinLanded(foul) {
+function onJavelinLanded(foul, drunkFoul = false) {
   javelinFlying = false;
   landedFoul = foul;
+  landedDrunkFoul = drunkFoul;
 
   if (!foul) {
-    // Calculate distance from player
-    landedDistance = Math.sqrt(
-      javelin.position.x * javelin.position.x +
-      javelin.position.z * javelin.position.z
-    );
+    // Calculate distance from foul line
+    const dx = javelin.position.x;
+    const dz = javelin.position.z - FOUL_LINE_Z;
+    landedDistance = Math.sqrt(dx * dx + dz * dz);
 
     // Fuzzy display (no official markers)
     const displayDist = Math.round(landedDistance) + (Math.random() > 0.5 ? 0.5 : 0);
@@ -2630,6 +3413,17 @@ function showLandedResult() {
       // Show tree hit dialogue
       const d = getTreeHitDialogue();
       showDialogue(d.name, d.text, null);
+    } else if (landedDrunkFoul) {
+      const msgs = [
+        'The wine got the better of you on that one.',
+        'Your aim wandered — too much Omenaviini!',
+        'The forest is spinning... so is your javelin.',
+        'That throw had more wobble than technique.',
+        'Helmeilevä Omenaviini strikes again!',
+      ];
+      const msg = msgs[Math.floor(Math.random() * msgs.length)];
+      distEl.innerHTML = 'FOUL!<span class="sub">Drunken throw!</span>';
+      showDialogue('Coach Matti', msg, null);
     } else {
       distEl.innerHTML = 'FOUL!<span class="sub">Outside the sector or bad landing</span>';
     }
@@ -2658,6 +3452,8 @@ function showLandedResult() {
 
       if (currentRound === 1) {
         bottle2Available = true;
+        beerAvailable = true;
+        diceAvailable = true;
       }
       if (currentRound === 3 && !bottle2Completed) {
         gameState = STATES.BOTTLE2_GAMEOVER;
@@ -2707,6 +3503,8 @@ function endRound() {
 
     if (currentRound === 1) {
       bottle2Available = true;
+      beerAvailable = true;
+      diceAvailable = true;
     }
     if (currentRound === 3 && !bottle2Completed) {
       gameState = STATES.BOTTLE2_GAMEOVER;
@@ -2807,6 +3605,12 @@ function startDrinkingMinigame() {
 
 function updateDrinking(dt, time) {
   if (gameState !== STATES.DRINKING) return;
+
+  // Delegate to beer drinking if active
+  if (isDrinkingBeer) {
+    updateBeerDrinking(dt, time);
+    return;
+  }
 
   const drinkRate = bottleNumber === 2 ? BOTTLE2_DRINK_RATE : DRINK_RATE;
   const nauseaBuild = bottleNumber === 2 ? BOTTLE2_NAUSEA_BUILD_RATE : NAUSEA_BUILD_RATE;
@@ -2933,19 +3737,16 @@ function completeDrinking() {
         aimPitch = preBottle2AimPitch;
         aimYaw = preBottle2AimYaw;
 
-        // Show javelin, hide bottle
-        if (armGroup) {
-          const bottle = armGroup.getObjectByName('bottleInHand');
-          if (bottle) bottle.visible = false;
-          const stick = armGroup.getObjectByName('stickInHand');
-          if (stick) stick.visible = true;
-        }
+        // Show javelin, hide other items
+        currentItemIndex = 0;
+        showHandItem('stickInHand');
 
         gameState = STATES.AIMING;
         document.getElementById('crosshair').style.display = '';
         document.getElementById('drink-label').style.display = 'none';
         armAnimState = 'idle';
         armAnimTime = 0;
+        updateItemToggleButton();
       } : null);
     });
     return;
@@ -3081,19 +3882,15 @@ function startDrinkingMinigameBottle2() {
   document.getElementById('drink-instruction').textContent = isMobile ? 'Hold DRINK to drink — this one is STRONGER!' : 'Hold SPACE to drink — this one is STRONGER!';
   document.getElementById('crosshair').style.display = 'none';
 
-  // Keep bottle toggle visible for bottle 2, update label
-  const bottleToggle = document.getElementById('bottle-toggle');
-  bottleToggle.style.display = 'flex';
-  document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDFF9';
-  document.getElementById('bottle-toggle-label').textContent = isMobile ? 'THROW' : 'THROW (D)';
+  // Keep toggle visible, update for cycling
+  currentItemIndex = 3; // wine selected
+  updateItemToggleButton();
 
-  // Show bottle, hide javelin
+  // Show bottle, hide other items
   if (armGroup) {
     armGroup.visible = true;
-    const stick = armGroup.getObjectByName('stickInHand');
-    if (stick) stick.visible = false;
+    showHandItem('bottleInHand');
     const bottle = armGroup.getObjectByName('bottleInHand');
-    if (bottle) bottle.visible = true;
 
     // Restore wine level from current progress
     const wineLevel = bottle ? bottle.getObjectByName('wineLevel') : null;
@@ -3126,6 +3923,522 @@ function hideDrinkingUI() {
 }
 
 // ============================================================
+// ITEM CYCLING
+// ============================================================
+function hideAllHandItems() {
+  if (!armGroup) return;
+  const stick = armGroup.getObjectByName('stickInHand');
+  const bottle = armGroup.getObjectByName('bottleInHand');
+  const beer = armGroup.getObjectByName('beerCanInHand');
+  const dice = armGroup.getObjectByName('diceInHand');
+  if (stick) stick.visible = false;
+  if (bottle) bottle.visible = false;
+  if (beer) beer.visible = false;
+  if (dice) dice.visible = false;
+}
+
+function showHandItem(name) {
+  if (!armGroup) return;
+  hideAllHandItems();
+  const item = armGroup.getObjectByName(name);
+  if (item) item.visible = true;
+}
+
+function isItemAvailable(index) {
+  if (index === 0) return true; // javelin always available
+  if (index === 1) return beerAvailable && !beerFinished;
+  if (index === 2) return diceAvailable && diceThrowsRemaining > 0;
+  if (index === 3) return bottle2Available && !bottle2Completed;
+  return false;
+}
+
+function cycleToNextItem() {
+  // Find next available item
+  let start = currentItemIndex;
+  for (let i = 1; i <= 4; i++) {
+    let next = (start + i) % 4;
+    if (isItemAvailable(next)) {
+      switchToItem(next);
+      return;
+    }
+  }
+}
+
+function switchToItem(index) {
+  currentItemIndex = index;
+
+  if (index === 0) {
+    // Javelin
+    if (isDrinkingBeer) {
+      isDrinkingBeer = false;
+      isDrinking = false;
+      hideDrinkingUI();
+    }
+    showHandItem('stickInHand');
+    if (armGroup) armGroup.visible = true;
+    gameState = STATES.AIMING;
+    document.getElementById('crosshair').style.display = '';
+    armAnimState = 'idle';
+    armAnimTime = 0;
+    const instrEl = document.getElementById('run-instruction');
+    instrEl.style.display = 'block';
+    instrEl.textContent = isMobile ? 'Aim, then hold RUN' : 'Aim, then hold W to run';
+  } else if (index === 1) {
+    // Beer
+    startBeerDrinking();
+  } else if (index === 2) {
+    // Dice
+    showHandItem('diceInHand');
+    if (armGroup) armGroup.visible = true;
+    gameState = STATES.AIMING;
+    document.getElementById('crosshair').style.display = '';
+    armAnimState = 'idle';
+    armAnimTime = 0;
+    const instrEl = document.getElementById('run-instruction');
+    instrEl.style.display = 'block';
+    instrEl.textContent = isMobile ? 'Tap THROW to roll dice!' : 'Press Space to roll dice!';
+  } else if (index === 3) {
+    // Wine
+    startRoundDrinking();
+  }
+
+  updateItemToggleButton();
+}
+
+function updateItemToggleButton() {
+  const toggle = document.getElementById('bottle-toggle');
+  const icon = document.getElementById('bottle-toggle-icon');
+  const label = document.getElementById('bottle-toggle-label');
+
+  // Find what the NEXT available item would be
+  let nextItem = -1;
+  for (let i = 1; i <= 4; i++) {
+    let next = (currentItemIndex + i) % 4;
+    if (isItemAvailable(next)) {
+      nextItem = next;
+      break;
+    }
+  }
+
+  if (nextItem === -1) {
+    toggle.style.display = 'none';
+    return;
+  }
+
+  toggle.style.display = 'flex';
+  toggle.classList.remove('completed');
+
+  const names = ['javelin', 'beer', 'dice', 'wine'];
+  const icons = ['\uD83C\uDFF9', '\uD83C\uDF7A', '\uD83C\uDFB2', '\uD83C\uDF77'];
+  const labels_desktop = ['JAVELIN (D)', 'BEER (D)', 'DICE (D)', 'WINE (D)'];
+  const labels_mobile = ['JAVELIN', 'BEER', 'DICE', 'WINE'];
+
+  icon.textContent = icons[nextItem];
+  label.textContent = isMobile ? labels_mobile[nextItem] : labels_desktop[nextItem];
+}
+
+// ============================================================
+// BEER DRINKING
+// ============================================================
+function startBeerDrinking() {
+  preBottle2AimPitch = aimPitch;
+  preBottle2AimYaw = aimYaw;
+  isDrinkingBeer = true;
+  gameState = STATES.DRINKING;
+  isDrinking = false;
+  drinkGulpTimer = 0;
+
+  // Show UI
+  document.getElementById('drink-meter').style.display = 'block';
+  document.getElementById('drink-fill').style.height = (beerDrinkProgress * 100) + '%';
+  document.getElementById('drink-label').style.display = 'block';
+  document.getElementById('drink-label').textContent = 'BEER';
+  document.getElementById('nausea-meter').style.display = 'block';
+  document.getElementById('nausea-fill').style.height = (nauseaLevel * 100) + '%';
+  document.getElementById('nausea-label').style.display = 'block';
+  document.getElementById('drink-instruction').style.display = 'block';
+  document.getElementById('drink-instruction').textContent = isMobile ? 'Hold DRINK — you can stop anytime!' : 'Hold SPACE to drink — you can stop anytime!';
+  document.getElementById('crosshair').style.display = 'none';
+
+  // Show beer can, hide others
+  showHandItem('beerCanInHand');
+  if (armGroup) armGroup.visible = true;
+
+  // Update beer level
+  if (armGroup) {
+    const beerCan = armGroup.getObjectByName('beerCanInHand');
+    if (beerCan) {
+      const beerLevel = beerCan.getObjectByName('beerLevel');
+      if (beerLevel) {
+        const remaining = 1 - beerDrinkProgress;
+        beerLevel.scale.y = Math.max(0.01, remaining);
+        beerLevel.position.y = 0.05 * remaining;
+      }
+    }
+  }
+
+  updateItemToggleButton();
+  armAnimState = 'drinking_idle';
+  armAnimTime = 0;
+}
+
+function updateBeerDrinking(dt, time) {
+  if (!isDrinkingBeer) return;
+
+  if (isDrinking) {
+    beerDrinkProgress += BEER_DRINK_RATE * dt;
+    nauseaLevel += (BEER_NAUSEA_BUILD + BEER_NAUSEA_ACCEL * nauseaLevel) * dt;
+
+    drinkGulpTimer += dt;
+    if (drinkGulpTimer >= 0.25) {
+      drinkGulpTimer = 0;
+      playSound('gulp');
+    }
+  } else {
+    nauseaLevel = Math.max(0, nauseaLevel - BEER_NAUSEA_DECAY * dt);
+    drinkGulpTimer = 0;
+  }
+
+  beerDrinkProgress = Math.min(beerDrinkProgress, 1);
+  nauseaLevel = Math.min(nauseaLevel, 1);
+
+  // Update beer level mesh
+  if (armGroup) {
+    const beerCan = armGroup.getObjectByName('beerCanInHand');
+    if (beerCan) {
+      const beerLevel = beerCan.getObjectByName('beerLevel');
+      if (beerLevel) {
+        const remaining = 1 - beerDrinkProgress;
+        beerLevel.scale.y = Math.max(0.01, remaining);
+        beerLevel.position.y = 0.05 * remaining;
+      }
+    }
+  }
+
+  // Update UI
+  document.getElementById('drink-fill').style.height = (beerDrinkProgress * 100) + '%';
+  document.getElementById('nausea-fill').style.height = (nauseaLevel * 100) + '%';
+  updateNauseaEffects(time);
+
+  // Puke check
+  if (nauseaLevel >= 1) {
+    isDrinkingBeer = false;
+    triggerPuke();
+    return;
+  }
+
+  // Beer finished
+  if (beerDrinkProgress >= 1) {
+    completeBeerDrinking();
+    return;
+  }
+}
+
+function completeBeerDrinking() {
+  isDrinking = false;
+  isDrinkingBeer = false;
+  beerFinished = true;
+  beerBoostActive = true;
+  wineWobbleIntensity += 0.036;
+  playSound('burp');
+  hideDrinkingUI();
+
+  // Switch back to javelin
+  currentItemIndex = 0;
+  showHandItem('stickInHand');
+  aimPitch = preBottle2AimPitch;
+  aimYaw = preBottle2AimYaw;
+  gameState = STATES.AIMING;
+  document.getElementById('crosshair').style.display = '';
+  armAnimState = 'idle';
+  armAnimTime = 0;
+  updateItemToggleButton();
+}
+
+// ============================================================
+// DICE THROWING
+// ============================================================
+function throwDice() {
+  if (diceFlying || diceLanded) return;
+  if (diceThrowsRemaining <= 0) return;
+
+  diceThrowsRemaining--;
+  diceFlying = true;
+  diceLanded = false;
+  mexicoActive = false;
+
+  // Randomize values
+  diceValues = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
+
+  // Clean up old dice
+  diceMeshes.forEach(m => scene.remove(m));
+  diceMeshes = [];
+  diceVelocities = [];
+  diceAngularVels = [];
+
+  // Spawn position from player hand
+  const spawnY = PLAYER_POS.y + 0.3;
+  const spawnZ = PLAYER_POS.z - 0.5;
+
+  for (let i = 0; i < 2; i++) {
+    const die = createDieMesh();
+    die.scale.set(1.5, 1.5, 1.5);
+    const offsetX = (i === 0 ? -0.15 : 0.15) + (Math.random() - 0.5) * 0.1;
+    die.position.set(offsetX, spawnY, spawnZ);
+    scene.add(die);
+    diceMeshes.push(die);
+
+    // Arc velocity — forward (-Z) and upward
+    diceVelocities.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      4 + Math.random() * 2,
+      -3 - Math.random() * 2
+    ));
+    diceAngularVels.push(new THREE.Vector3(
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 10,
+      (Math.random() - 0.5) * 10
+    ));
+  }
+
+  // Hide dice in hand
+  hideAllHandItems();
+  showHandItem('stickInHand');
+
+  const instrEl = document.getElementById('run-instruction');
+  instrEl.style.display = 'block';
+  instrEl.textContent = 'Rolling...';
+}
+
+function updateDicePhysics(dt) {
+  if (!diceFlying) return;
+
+  let allStopped = true;
+
+  for (let i = 0; i < diceMeshes.length; i++) {
+    const die = diceMeshes[i];
+    const vel = diceVelocities[i];
+    const angVel = diceAngularVels[i];
+
+    // Gravity
+    vel.y -= 9.81 * dt;
+
+    // Move
+    die.position.x += vel.x * dt;
+    die.position.y += vel.y * dt;
+    die.position.z += vel.z * dt;
+
+    // Rotate
+    die.rotation.x += angVel.x * dt;
+    die.rotation.y += angVel.y * dt;
+    die.rotation.z += angVel.z * dt;
+
+    // Terrain collision
+    const groundY = getTerrainHeight(die.position.x, die.position.z) + 0.06;
+    if (die.position.y < groundY) {
+      die.position.y = groundY;
+      vel.y = Math.abs(vel.y) * 0.3; // bounce
+      vel.x *= 0.7;
+      vel.z *= 0.7;
+      angVel.multiplyScalar(0.6);
+    }
+
+    // Check if stopped
+    const speed = vel.length();
+    if (speed > 0.1) allStopped = false;
+  }
+
+  if (allStopped) {
+    diceFlying = false;
+    diceLanded = true;
+    // Snap dice to ground
+    diceMeshes.forEach(die => {
+      const gy = getTerrainHeight(die.position.x, die.position.z) + 0.06;
+      die.position.y = gy;
+    });
+    showDiceResult();
+  }
+}
+
+function renderDieFace(value) {
+  // Grid positions: 1-9 in a 3x3 grid (top-left=1, center=5, bottom-right=9)
+  const dotMap = {
+    1: [5],
+    2: [3, 7],
+    3: [3, 5, 7],
+    4: [1, 3, 7, 9],
+    5: [1, 3, 5, 7, 9],
+    6: [1, 3, 4, 6, 7, 9]
+  };
+  const active = dotMap[value] || [];
+  let html = '';
+  for (let i = 1; i <= 9; i++) {
+    if (active.includes(i)) {
+      html += '<span class="dot"></span>';
+    } else {
+      html += '<span class="dot hidden"></span>';
+    }
+  }
+  return html;
+}
+
+function showDiceResult() {
+  const isMexico = (diceValues[0] === 1 && diceValues[1] === 2) ||
+                   (diceValues[0] === 2 && diceValues[1] === 1);
+  mexicoActive = isMexico;
+
+  document.getElementById('die-face-1').innerHTML = renderDieFace(diceValues[0]);
+  document.getElementById('die-face-2').innerHTML = renderDieFace(diceValues[1]);
+  document.getElementById('dice-throws-remaining').textContent =
+    diceThrowsRemaining > 0 ? `${diceThrowsRemaining} throw${diceThrowsRemaining !== 1 ? 's' : ''} remaining` : 'No throws left';
+
+  const mexicoText = document.getElementById('mexico-text');
+  mexicoText.style.display = isMexico ? 'block' : 'none';
+
+  const overlay = document.getElementById('dice-result');
+  overlay.style.display = 'flex';
+  overlay.classList.remove('fade-out');
+
+  diceResultTimer = isMexico ? 4.0 : 3.0;
+
+  if (isMexico) {
+    playSound('cheer');
+    spawnFireworks();
+  }
+
+  const instrEl = document.getElementById('run-instruction');
+  instrEl.style.display = 'none';
+}
+
+function hideDiceResult() {
+  const overlay = document.getElementById('dice-result');
+  overlay.classList.add('fade-out');
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    overlay.classList.remove('fade-out');
+  }, 500);
+
+  // Clean up dice from scene
+  diceMeshes.forEach(m => scene.remove(m));
+  diceMeshes = [];
+  diceLanded = false;
+  mexicoActive = false;
+
+  // Return to javelin or stay on dice if throws remain
+  if (diceThrowsRemaining > 0) {
+    currentItemIndex = 2;
+    showHandItem('diceInHand');
+    const instrEl = document.getElementById('run-instruction');
+    instrEl.style.display = 'block';
+    instrEl.textContent = isMobile ? 'Tap THROW to roll dice!' : 'Press Space to roll dice!';
+  } else {
+    currentItemIndex = 0;
+    showHandItem('stickInHand');
+    const instrEl = document.getElementById('run-instruction');
+    instrEl.style.display = 'block';
+    instrEl.textContent = isMobile ? 'Aim, then hold RUN' : 'Aim, then hold W to run';
+  }
+  updateItemToggleButton();
+}
+
+function updateDiceResult(dt) {
+  if (!diceLanded) return;
+  diceResultTimer -= dt;
+  if (diceResultTimer <= 0) {
+    hideDiceResult();
+  }
+}
+
+// ============================================================
+// FIREWORKS (Mexico!)
+// ============================================================
+function spawnFireworks() {
+  if (fireworkParticles) {
+    scene.remove(fireworkParticles);
+    fireworkParticles = null;
+  }
+
+  const count = 200;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const velocities = [];
+
+  // Spawn above boulder position
+  const spawnPos = new THREE.Vector3(-2.4, getTerrainHeight(0, 0.5) + 4, -3.5);
+
+  const colorOptions = [
+    [1, 0.2, 0.2], [1, 1, 0.2], [0.2, 1, 0.2], [1, 1, 1],
+    [1, 0.5, 0], [0.2, 0.5, 1], [1, 0.2, 1]
+  ];
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = spawnPos.x;
+    positions[i * 3 + 1] = spawnPos.y;
+    positions[i * 3 + 2] = spawnPos.z;
+
+    const c = colorOptions[Math.floor(Math.random() * colorOptions.length)];
+    colors[i * 3] = c[0];
+    colors[i * 3 + 1] = c[1];
+    colors[i * 3 + 2] = c[2];
+
+    // Radial burst
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const speed = 3 + Math.random() * 5;
+    velocities.push(new THREE.Vector3(
+      Math.sin(phi) * Math.cos(theta) * speed,
+      Math.cos(phi) * speed * 0.8 + 2,
+      Math.sin(phi) * Math.sin(theta) * speed
+    ));
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  const mat = new THREE.PointsMaterial({
+    size: 0.15,
+    vertexColors: true,
+    transparent: true,
+    opacity: 1.0,
+    sizeAttenuation: true
+  });
+
+  fireworkParticles = new THREE.Points(geo, mat);
+  fireworkParticles.userData.velocities = velocities;
+  fireworkParticles.userData.life = 2.5;
+  scene.add(fireworkParticles);
+  fireworkTimer = 2.5;
+}
+
+function updateFireworks(dt) {
+  if (!fireworkParticles) return;
+
+  fireworkTimer -= dt;
+  if (fireworkTimer <= 0) {
+    scene.remove(fireworkParticles);
+    fireworkParticles = null;
+    return;
+  }
+
+  const positions = fireworkParticles.geometry.attributes.position.array;
+  const vels = fireworkParticles.userData.velocities;
+  const totalLife = fireworkParticles.userData.life;
+
+  for (let i = 0; i < vels.length; i++) {
+    // Gravity
+    vels[i].y -= 4.0 * dt;
+
+    positions[i * 3] += vels[i].x * dt;
+    positions[i * 3 + 1] += vels[i].y * dt;
+    positions[i * 3 + 2] += vels[i].z * dt;
+  }
+
+  fireworkParticles.geometry.attributes.position.needsUpdate = true;
+  fireworkParticles.material.opacity = Math.max(0, fireworkTimer / totalLife);
+}
+
+// ============================================================
 // GAME FLOW
 // ============================================================
 function showCharacterSelect() {
@@ -3152,19 +4465,25 @@ function showCharacterSelect() {
   });
 }
 
+function setUpperArmColor(hex) {
+  if (!armGroup) return;
+  const upperArm = armGroup.getObjectByName('upperArm');
+  if (!upperArm) return;
+  upperArm.traverse(child => {
+    if (child.isMesh && child.material && child.material.color) {
+      child.material.color.setHex(hex);
+    }
+  });
+}
+
 function applyPlayerColors() {
-  if (armGroup) {
-    const upperArm = armGroup.getObjectByName('upperArm');
-    if (upperArm) upperArm.material.color.setHex(playerJacketColor);
-  }
+  setUpperArmColor(playerJacketColor);
 }
 
 function undressPlayer() {
   isNaked = true;
-  if (armGroup) {
-    const upperArm = armGroup.getObjectByName('upperArm');
-    if (upperArm) upperArm.material.color.setHex(0xd4a574); // skin
-  }
+  setUpperArmColor(0xd4a574); // skin
+  updatePlayerBodyColors();
   npcMeshes.forEach(npc => {
     npc.userData.reaction = 'celebrate';
     npc.userData.reactionTimer = 3.0;
@@ -3173,16 +4492,21 @@ function undressPlayer() {
 
 function restorePlayerClothing() {
   isNaked = false;
-  if (armGroup) {
-    const upperArm = armGroup.getObjectByName('upperArm');
-    if (upperArm) upperArm.material.color.setHex(playerJacketColor);
-  }
+  setUpperArmColor(playerJacketColor);
+  updatePlayerBodyColors();
 }
 
 function startGame() {
   document.getElementById('title-screen').style.display = 'none';
   document.getElementById('character-select').style.display = 'none';
   document.getElementById('hud').style.display = 'block';
+
+  // Create 3rd person body model (uses selected colors)
+  if (!playerBodyModel) {
+    createPlayerBody();
+  } else {
+    updatePlayerBodyColors();
+  }
 
   initAudio();
   playSound('ambient');
@@ -3217,11 +4541,44 @@ function resetForThrow() {
   javelinLanded = false;
   javelinHitTree = false;
   landedFoul = false;
+  landedDrunkFoul = false;
 
-  // Show stick in hand
+  // Reset run-up state
+  playerRunZ = RUN_START_Z;
+  runUpSpeed = 0;
+  isRunning = false;
+  throwReleaseTimer = 0;
+
+  // Reset item cycling and beer/dice state for this throw
+  currentItemIndex = 0;
+  beerDrinkProgress = 0;
+  beerFinished = false;
+  isDrinkingBeer = false;
+  diceThrowsRemaining = 3;
+  diceFlying = false;
+  diceLanded = false;
+  // Clean up dice meshes
+  diceMeshes.forEach(m => scene.remove(m));
+  diceMeshes = [];
+  document.getElementById('dice-result').style.display = 'none';
+  // beerBoostActive persists until used in the throw
+
+  // Show arm and stick in hand (1st person), hide other items
   if (armGroup) {
+    armGroup.visible = true;
+    hideAllHandItems();
     const stick = armGroup.getObjectByName('stickInHand');
     if (stick) stick.visible = true;
+  }
+
+  // Hide 3rd person body model, reset its javelin visibility
+  if (playerBodyModel) {
+    playerBodyModel.visible = false;
+    const armR = playerBodyModel.userData.armR;
+    if (armR) {
+      const bodyJav = armR.getObjectByName('bodyJavelin');
+      if (bodyJav) bodyJav.visible = true;
+    }
   }
 
   // Remove old javelin
@@ -3230,18 +4587,23 @@ function resetForThrow() {
     javelin = null;
   }
 
-  // Reset camera orientation
+  // Reset camera orientation and position
+  PLAYER_POS.set(0, getTerrainHeight(0, 0) + 1.7, 0);
   camera.rotation.set(0, 0, 0);
 
   document.getElementById('power-meter').style.display = 'none';
+  document.getElementById('speed-meter').style.display = 'none';
+  document.getElementById('speed-label').style.display = 'none';
   document.getElementById('distance-display').style.display = 'none';
   document.getElementById('crosshair').style.display = '';
 
-  // Hide bottle, ensure javelin is visible
-  if (armGroup) {
-    const bottle = armGroup.getObjectByName('bottleInHand');
-    if (bottle) bottle.visible = false;
-  }
+  // Show run-up instructions during aiming
+  const instrEl = document.getElementById('run-instruction');
+  instrEl.style.display = 'block';
+  instrEl.textContent = isMobile ? 'Aim, then hold RUN' : 'Aim, then hold W to run';
+
+  // Update item toggle button
+  updateItemToggleButton();
 
   // Pointer lock will be re-acquired on next click (requires user gesture)
 }
@@ -3249,11 +4611,22 @@ function resetForThrow() {
 function doThrow() {
   if (gameState !== STATES.CHARGING) return;
 
-  gameState = STATES.FLIGHT;
-  armAnimState = 'release';
-  armAnimTime = 0;
+  // Enter throw release animation (3rd person)
+  gameState = STATES.THROW_RELEASE;
+  throwReleaseTimer = 0;
 
-  // Calculate throw direction
+  // Hide power meter and speed meter
+  document.getElementById('power-meter').style.display = 'none';
+  document.getElementById('speed-meter').style.display = 'none';
+  document.getElementById('speed-label').style.display = 'none';
+
+  playSound('throw');
+
+  // After 0.3s of throw animation, spawn the javelin
+  setTimeout(() => {
+    if (gameState !== STATES.THROW_RELEASE) return;
+
+    // Calculate throw direction using locked aim
   const pitchRad = aimPitch * Math.PI / 180;
   const yawRad = aimYaw * Math.PI / 180;
 
@@ -3263,29 +4636,53 @@ function doThrow() {
     -Math.cos(yawRad) * Math.cos(pitchRad)
   ).normalize();
 
-  // Power: 15-35 m/s base speed for the stick
-  const baseSpeed = 15 + chargePower * 22;
-  const vel = dir.multiplyScalar(baseSpeed);
+    // Three factors combine multiplicatively for best throws:
+    // a) runUpSpeed² — how fast you were running (0–1)
+    // b) proximity² — how close to foul line you stopped (0–1)
+    // c) chargePower — how well you timed the power meter (0–1)
+    //
+    // Standing throw (no run): base only, no multiplier bonus
+    // Perfect throw (all three maxed): massive bonus
 
-  // Spawn position (slightly in front of player)
-  const spawnPos = new THREE.Vector3(0, PLAYER_POS.y + 0.2, -1.5);
+    const distFromStart = RUN_START_Z - playerRunZ;
+    const totalRunDist = RUN_START_Z - FOUL_LINE_Z;
+    const proximity = Math.max(0, Math.min(1, distFromStart / totalRunDist));
+
+    const speedFactor = runUpSpeed * runUpSpeed;       // 0–1, exponential
+    const proximityFactor = proximity * proximity;      // 0–1, exponential
+    const chargeFactor = chargePower;                   // 0–1, linear
+
+    // Base speed from charge alone (standing throw caps here)
+    const chargeBase = 12 + chargeFactor * 16;          // 12–28 m/s
+
+    // Combined multiplier: all three factors multiply together
+    // Only kicks in when you actually ran (speedFactor > 0)
+    const combinedFactor = speedFactor * proximityFactor * chargeFactor;
+    const runBonus = combinedFactor * 20;               // 0–20 m/s bonus
+
+    let totalSpeed = chargeBase + runBonus;              // 12–48 m/s
+    if (beerBoostActive) totalSpeed *= 1.2;              // 20% beer boost
+    const vel = dir.multiplyScalar(totalSpeed);
+
+    // Spawn position at player's current run-up position
+    const groundY = getTerrainHeight(0, playerRunZ);
+    const spawnPos = new THREE.Vector3(0, groundY + 1.5, playerRunZ - 0.5);
   spawnJavelin(spawnPos, vel);
 
-  // Hide stick in hand
-  if (armGroup) {
-    const stick = armGroup.getObjectByName('stickInHand');
-    if (stick) stick.visible = false;
-  }
-
-  playSound('throw');
   playSound('flight');
+  }, 300);
 
-  document.getElementById('power-meter').style.display = 'none';
+  // After full 0.5s animation, transition to FLIGHT
+  setTimeout(() => {
+    if (gameState !== STATES.THROW_RELEASE) return;
 
-  // Release pointer lock during flight
-  if (document.pointerLockElement) {
-    document.exitPointerLock();
-  }
+    gameState = STATES.FLIGHT;
+    beerBoostActive = false; // reset after use
+
+    // Hide 3rd person body, show nothing (javelin follow cam)
+    if (playerBodyModel) playerBodyModel.visible = false;
+    if (armGroup) armGroup.visible = false;
+  }, 500);
 }
 
 function retryRound() {
@@ -3299,6 +4696,7 @@ function restartGame() {
   document.getElementById('result-overlay').style.display = 'none';
   document.getElementById('puke-overlay').style.display = 'none';
   document.getElementById('nausea-overlay').style.display = 'none';
+  document.getElementById('dice-result').style.display = 'none';
   hideDrinkingUI();
 
   // Reset drinking state
@@ -3307,8 +4705,42 @@ function restartGame() {
   isDrinking = false;
   wineWobbleIntensity = 0;
 
-  // Hide bottle
+  // Reset beer/dice state
+  beerAvailable = false;
+  beerFinished = false;
+  beerDrinkProgress = 0;
+  beerBoostActive = false;
+  isDrinkingBeer = false;
+  diceAvailable = false;
+  diceThrowsRemaining = 3;
+  diceFlying = false;
+  diceLanded = false;
+  currentItemIndex = 0;
+  mexicoActive = false;
+  diceMeshes.forEach(m => scene.remove(m));
+  diceMeshes = [];
+  if (fireworkParticles) { scene.remove(fireworkParticles); fireworkParticles = null; }
+
+  // Reset run-up state
+  playerRunZ = RUN_START_Z;
+  runUpSpeed = 0;
+  isRunning = false;
+  throwReleaseTimer = 0;
+  PLAYER_POS.set(0, getTerrainHeight(0, 0) + 1.7, 0);
+
+  // Hide body model
+  if (playerBodyModel) playerBodyModel.visible = false;
+
+  // Hide run-up UI
+  document.getElementById('speed-meter').style.display = 'none';
+  document.getElementById('speed-label').style.display = 'none';
+  document.getElementById('run-instruction').style.display = 'none';
+
+  // Hide all hand items except javelin
   if (armGroup) {
+    hideAllHandItems();
+    const stick = armGroup.getObjectByName('stickInHand');
+    if (stick) stick.visible = true;
     const bottle = armGroup.getObjectByName('bottleInHand');
     if (bottle) bottle.visible = false;
   }
@@ -3352,7 +4784,7 @@ document.addEventListener('pointerlockchange', () => {
 
 document.addEventListener('mousemove', (e) => {
   if (!pointerLocked) return;
-  if (gameState !== STATES.AIMING && gameState !== STATES.CHARGING) return;
+  if (gameState !== STATES.AIMING) return;
 
   const sensitivity = 0.15;
   aimYaw = Math.max(-20, Math.min(20, aimYaw - e.movementX * sensitivity));
@@ -3360,6 +4792,102 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('keydown', (e) => {
+  // DEV SKIP: Escape to skip to drinking or throwing
+  if (e.code === 'Escape') {
+    e.preventDefault();
+    if (gameState === STATES.DRINKING || gameState === STATES.DRINKING_INTRO ||
+        gameState === STATES.DRINKING_COMPLETE || gameState === STATES.CELEBRATION_CAMERA) {
+      // Skip from drinking to throwing
+      dialogueQueue = [];
+      dialogueActive = false;
+      document.getElementById('dialogue-box').style.display = 'none';
+      hideDrinkingUI();
+      drinkProgress = 1;
+      isDrinking = false;
+      wineWobbleIntensity = 0.05;
+
+      if (armGroup) {
+        armGroup.visible = true;
+        showHandItem('stickInHand');
+      }
+      currentItemIndex = 0;
+      isDrinkingBeer = false;
+
+      startNPCWalkToPositions();
+      currentRound = 0;
+      currentThrow = 0;
+      randomizeWind();
+      resetForThrow();
+      console.log('[DEV] Skipped to throwing phase');
+    } else if (gameState === STATES.AIMING || gameState === STATES.RUN_UP ||
+               gameState === STATES.CHARGING || gameState === STATES.THROW_RELEASE ||
+               gameState === STATES.FLIGHT || gameState === STATES.LANDED ||
+               gameState === STATES.RESULT || gameState === STATES.ROUND_DIALOGUE) {
+      // Already past drinking — just reset current throw
+      dialogueQueue = [];
+      dialogueActive = false;
+      document.getElementById('dialogue-box').style.display = 'none';
+      document.getElementById('distance-display').style.display = 'none';
+      if (javelin) { scene.remove(javelin); javelin = null; }
+      javelinFlying = false;
+      randomizeWind();
+      resetForThrow();
+      console.log('[DEV] Reset to throwing phase');
+    } else {
+      // Skip to drinking from title/intro/character select
+      dialogueQueue = [];
+      dialogueActive = false;
+      document.getElementById('dialogue-box').style.display = 'none';
+      document.getElementById('title-screen').style.display = 'none';
+      document.getElementById('character-select').style.display = 'none';
+      document.getElementById('hud').style.display = 'block';
+      if (!playerBodyModel) createPlayerBody();
+      initAudio();
+      startDrinkingMinigame();
+      console.log('[DEV] Skipped to drinking phase');
+    }
+    return;
+  }
+
+  // W key: start run-up from AIMING, or hold to run during RUN_UP
+  if (e.code === 'KeyW') {
+    if (diceFlying || diceLanded) return; // block during dice
+    if (gameState === STATES.AIMING && currentItemIndex !== 0) return; // only run with javelin
+    if (gameState === STATES.AIMING) {
+      // Lock aim and transition to run-up
+      gameState = STATES.RUN_UP;
+      isRunning = true;
+      playerRunZ = RUN_START_Z;
+      runUpSpeed = 0;
+
+      // Exit pointer lock (no more mouse aiming)
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+
+      // Hide 1st person arm, show 3rd person body
+      if (armGroup) armGroup.visible = false;
+      if (playerBodyModel) {
+        playerBodyModel.visible = true;
+        const groundY = getTerrainHeight(0, playerRunZ);
+        playerBodyModel.position.set(0, groundY, playerRunZ);
+        playerBodyModel.rotation.y = Math.PI;
+      }
+
+      // Show speed meter and instruction
+      document.getElementById('crosshair').style.display = 'none';
+      document.getElementById('speed-meter').style.display = 'block';
+      document.getElementById('speed-label').style.display = 'block';
+      document.getElementById('run-instruction').style.display = 'block';
+      document.getElementById('run-instruction').textContent = isMobile ? 'Hold RUN + tap THROW near the line!' : 'Hold W + press Space near the foul line!';
+      return;
+    }
+    if (gameState === STATES.RUN_UP) {
+      isRunning = true;
+    }
+    return;
+  }
+
   if (e.code === 'Space') {
     e.preventDefault();
 
@@ -3375,47 +4903,103 @@ document.addEventListener('keydown', (e) => {
       return;
     }
 
-    if (gameState === STATES.AIMING) {
+    // Space during RUN_UP: start charging while still running
+    if (gameState === STATES.RUN_UP) {
+      gameState = STATES.CHARGING;
+      isCharging = true;
+      // Don't touch isRunning — player keeps running if W is held
+      chargePower = 0;
+      chargeDirection = 1;
+      document.getElementById('power-meter').style.display = 'block';
+      document.getElementById('run-instruction').style.display = 'none';
+      return;
+    }
+
+    // Block Space during dice flight/result
+    if (diceFlying || diceLanded) return;
+
+    // Space during AIMING with dice selected: throw dice
+    if (gameState === STATES.AIMING && currentItemIndex === 2) {
+      throwDice();
+      return;
+    }
+
+    // Space during AIMING (no run-up, standing throw) — javelin only
+    if (gameState === STATES.AIMING && currentItemIndex === 0) {
+      // Skip run-up entirely — standing throw
+      gameState = STATES.RUN_UP;
+      playerRunZ = RUN_START_Z;
+      runUpSpeed = 0;
+      isRunning = false;
+
+      // Exit pointer lock
+      if (document.pointerLockElement) {
+        document.exitPointerLock();
+      }
+
+      // Hide 1st person arm, show 3rd person body
+      if (armGroup) armGroup.visible = false;
+      if (playerBodyModel) {
+        playerBodyModel.visible = true;
+        const groundY = getTerrainHeight(0, playerRunZ);
+        playerBodyModel.position.set(0, groundY, playerRunZ);
+        playerBodyModel.rotation.y = Math.PI;
+      }
+
+      document.getElementById('crosshair').style.display = 'none';
+
+      // Immediately enter charging (standing throw)
       gameState = STATES.CHARGING;
       isCharging = true;
       chargePower = 0;
       chargeDirection = 1;
-      armAnimState = 'windup';
-      armAnimTime = 0;
       document.getElementById('power-meter').style.display = 'block';
     }
   }
 
   if (e.code === 'KeyD') {
+    if (diceFlying || diceLanded) return; // block during dice animation
     if (gameState === STATES.DRINKING && bottleNumber === 2) {
-      // Toggle from drinking back to aiming
+      // Toggle from wine drinking back to aiming (then cycle)
       isDrinking = false;
       hideDrinkingUI();
-
-      // Hide bottle, show javelin
-      if (armGroup) {
-        armGroup.visible = true;
-        const bottle = armGroup.getObjectByName('bottleInHand');
-        if (bottle) bottle.visible = false;
-        const stick = armGroup.getObjectByName('stickInHand');
-        if (stick) stick.visible = true;
-      }
-
-      // Restore aim
       aimPitch = preBottle2AimPitch;
       aimYaw = preBottle2AimYaw;
-
+      showHandItem('stickInHand');
+      if (armGroup) armGroup.visible = true;
       gameState = STATES.AIMING;
       document.getElementById('crosshair').style.display = '';
       armAnimState = 'idle';
       armAnimTime = 0;
-    } else if (gameState === STATES.AIMING && bottle2Available && !bottle2Completed) {
-      startRoundDrinking();
+      currentItemIndex = 3; // was on wine
+      cycleToNextItem();
+    } else if (gameState === STATES.DRINKING && isDrinkingBeer) {
+      // Toggle from beer drinking back to aiming (then cycle)
+      isDrinking = false;
+      isDrinkingBeer = false;
+      hideDrinkingUI();
+      aimPitch = preBottle2AimPitch;
+      aimYaw = preBottle2AimYaw;
+      showHandItem('stickInHand');
+      if (armGroup) armGroup.visible = true;
+      gameState = STATES.AIMING;
+      document.getElementById('crosshair').style.display = '';
+      armAnimState = 'idle';
+      armAnimTime = 0;
+      currentItemIndex = 1; // was on beer
+      cycleToNextItem();
+    } else if (gameState === STATES.AIMING) {
+      cycleToNextItem();
     }
   }
 });
 
 document.addEventListener('keyup', (e) => {
+  if (e.code === 'KeyW') {
+    isRunning = false;
+    return;
+  }
+
   if (e.code === 'Space') {
     if (gameState === STATES.DRINKING) {
       isDrinking = false;
@@ -3467,35 +5051,45 @@ document.addEventListener('click', () => {
     return;
   }
 
-  if ((gameState === STATES.AIMING || gameState === STATES.CHARGING) && !pointerLocked) {
+  if (gameState === STATES.AIMING && !pointerLocked) {
     requestPointerLock();
   }
 });
 
 document.getElementById('bottle-toggle').addEventListener('click', (e) => {
   e.stopPropagation();
+  if (diceFlying || diceLanded) return;
   if (gameState === STATES.DRINKING && bottleNumber === 2) {
-    // Toggle from drinking back to aiming
+    // Toggle from wine drinking → cycle
     isDrinking = false;
     hideDrinkingUI();
-
-    if (armGroup) {
-      armGroup.visible = true;
-      const bottle = armGroup.getObjectByName('bottleInHand');
-      if (bottle) bottle.visible = false;
-      const stick = armGroup.getObjectByName('stickInHand');
-      if (stick) stick.visible = true;
-    }
-
+    showHandItem('stickInHand');
+    if (armGroup) armGroup.visible = true;
     aimPitch = preBottle2AimPitch;
     aimYaw = preBottle2AimYaw;
-
     gameState = STATES.AIMING;
     document.getElementById('crosshair').style.display = '';
     armAnimState = 'idle';
     armAnimTime = 0;
-  } else if (gameState === STATES.AIMING && bottle2Available && !bottle2Completed) {
-    startRoundDrinking();
+    currentItemIndex = 3;
+    cycleToNextItem();
+  } else if (gameState === STATES.DRINKING && isDrinkingBeer) {
+    // Toggle from beer drinking → cycle
+    isDrinking = false;
+    isDrinkingBeer = false;
+    hideDrinkingUI();
+    showHandItem('stickInHand');
+    if (armGroup) armGroup.visible = true;
+    aimPitch = preBottle2AimPitch;
+    aimYaw = preBottle2AimYaw;
+    gameState = STATES.AIMING;
+    document.getElementById('crosshair').style.display = '';
+    armAnimState = 'idle';
+    armAnimTime = 0;
+    currentItemIndex = 1;
+    cycleToNextItem();
+  } else if (gameState === STATES.AIMING) {
+    cycleToNextItem();
   }
 });
 
@@ -3534,7 +5128,7 @@ if (isMobile) {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const t = e.changedTouches[i];
       if (t.identifier !== aimTouchId) continue;
-      if (gameState !== STATES.AIMING && gameState !== STATES.CHARGING) break;
+      if (gameState !== STATES.AIMING) break;
       const dx = t.clientX - lastAimX;
       const dy = t.clientY - lastAimY;
       const sensitivity = 0.3;
@@ -3577,18 +5171,23 @@ if (isMobile) {
     armAnimTime = 0;
   });
 
-  // Touch throw button
+  // Touch throw button (now serves as charge during RUN_UP, release to throw during CHARGING)
   const throwBtn = document.getElementById('touch-throw-btn');
   throwBtn.addEventListener('touchstart', (e) => {
     e.stopPropagation();
-    if (gameState === STATES.AIMING) {
+    // Dice throw on mobile
+    if (gameState === STATES.AIMING && currentItemIndex === 2 && !diceFlying && !diceLanded) {
+      throwDice();
+      return;
+    }
+    if (gameState === STATES.RUN_UP) {
+      // Start charging while still running
       gameState = STATES.CHARGING;
       isCharging = true;
       chargePower = 0;
       chargeDirection = 1;
-      armAnimState = 'windup';
-      armAnimTime = 0;
       document.getElementById('power-meter').style.display = 'block';
+      document.getElementById('run-instruction').style.display = 'none';
     }
   });
   throwBtn.addEventListener('touchend', (e) => {
@@ -3604,6 +5203,42 @@ if (isMobile) {
       doThrow();
     }
   });
+
+  // Touch run button
+  const runBtn = document.getElementById('touch-run-btn');
+  runBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+    if (gameState === STATES.AIMING && currentItemIndex === 0) {
+      // Start run-up (javelin only)
+      gameState = STATES.RUN_UP;
+      isRunning = true;
+      playerRunZ = RUN_START_Z;
+      runUpSpeed = 0;
+
+      if (armGroup) armGroup.visible = false;
+      if (playerBodyModel) {
+        playerBodyModel.visible = true;
+        const groundY = getTerrainHeight(0, playerRunZ);
+        playerBodyModel.position.set(0, groundY, playerRunZ);
+        playerBodyModel.rotation.y = Math.PI;
+      }
+
+      document.getElementById('crosshair').style.display = 'none';
+      document.getElementById('speed-meter').style.display = 'block';
+      document.getElementById('speed-label').style.display = 'block';
+      document.getElementById('run-instruction').style.display = 'block';
+      document.getElementById('run-instruction').textContent = 'Hold RUN + tap THROW near the line!';
+    } else if (gameState === STATES.RUN_UP) {
+      isRunning = true;
+    }
+  });
+  runBtn.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    isRunning = false;
+  });
+  runBtn.addEventListener('touchcancel', () => {
+    isRunning = false;
+  });
 }
 
 // Show/hide mobile controls based on game state
@@ -3612,18 +5247,47 @@ function updateMobileControls() {
   const container = document.getElementById('mobile-controls');
   const drinkBtn = document.getElementById('touch-drink-btn');
   const throwBtn = document.getElementById('touch-throw-btn');
+  const runBtn = document.getElementById('touch-run-btn');
   const aimZone = document.getElementById('touch-aim-zone');
 
   if (gameState === STATES.DRINKING) {
     container.style.display = 'block';
     drinkBtn.style.display = 'flex';
     throwBtn.style.display = 'none';
+    runBtn.style.display = 'none';
     aimZone.style.display = 'none';
-  } else if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+  } else if (gameState === STATES.AIMING && currentItemIndex === 2 && !diceFlying && !diceLanded) {
+    // Dice selected: show throw button instead of run
     container.style.display = 'block';
     drinkBtn.style.display = 'none';
     throwBtn.style.display = 'flex';
-    aimZone.style.display = 'block';
+    throwBtn.innerHTML = 'ROLL<br>DICE';
+    runBtn.style.display = 'none';
+    aimZone.style.display = 'none';
+  } else if (gameState === STATES.AIMING) {
+    container.style.display = 'block';
+    drinkBtn.style.display = 'none';
+    throwBtn.style.display = 'none';
+    if (currentItemIndex === 0) {
+      runBtn.style.display = 'flex';
+    } else {
+      runBtn.style.display = 'none';
+    }
+    aimZone.style.display = currentItemIndex === 0 ? 'block' : 'none';
+  } else if (gameState === STATES.RUN_UP) {
+    container.style.display = 'block';
+    drinkBtn.style.display = 'none';
+    throwBtn.style.display = 'flex';
+    throwBtn.innerHTML = 'HOLD TO<br>CHARGE';
+    runBtn.style.display = 'flex';
+    aimZone.style.display = 'none';
+  } else if (gameState === STATES.CHARGING) {
+    container.style.display = 'block';
+    drinkBtn.style.display = 'none';
+    throwBtn.style.display = 'flex';
+    throwBtn.innerHTML = 'HOLD TO<br>CHARGE';
+    runBtn.style.display = 'none';
+    aimZone.style.display = 'none';
   } else {
     container.style.display = 'none';
   }
@@ -3658,17 +5322,29 @@ function updateArmAnimation(dt, time) {
   const upperArm = armGroup.getObjectByName('upperArm');
   const forearm = armGroup.getObjectByName('forearm');
   const hand = armGroup.getObjectByName('hand');
+  const elbow = armGroup.getObjectByName('elbow');
 
   armAnimTime += dt;
 
   // Breathing bob
   const breath = Math.sin(time * 2) * 0.01;
 
+  // Ensure arm is visible in 1st person states (not during 3rd person run-up/throw)
+  const isThirdPerson = gameState === STATES.RUN_UP || gameState === STATES.CHARGING ||
+                         gameState === STATES.THROW_RELEASE;
+  if (armAnimState !== 'follow' && !isThirdPerson) {
+    armGroup.visible = true;
+  }
+
+  // Only hand visible — hide upper arm, elbow, forearm
+  if (upperArm) upperArm.visible = false;
+  if (elbow) elbow.visible = false;
+  if (forearm) forearm.visible = false;
+
   switch (armAnimState) {
     case 'idle':
       armGroup.position.set(0.35, -0.3 + breath, -0.5);
       armGroup.rotation.set(0, 0, 0);
-      if (upperArm) upperArm.rotation.set(0, 0, -0.2);
       if (forearm) forearm.rotation.set(-0.3, 0, 0);
       break;
 
@@ -3710,22 +5386,25 @@ function updateArmAnimation(dt, time) {
         -0.5 - 0.3 * (1 - t)
       );
       armGroup.rotation.x = 0.4 * (1 - t);
+      if (t >= 1) {
+        armGroup.visible = false;
+      }
       break;
     }
 
     case 'drinking_idle':
-      // Holds bottle at chest level
-      armGroup.position.set(0.3, -0.25 + breath, -0.45);
+      // Holds bottle at chest level, centered
+      armGroup.position.set(-0.15, -0.25 + breath, -0.7);
       armGroup.rotation.set(-0.3, 0, 0);
       if (upperArm) upperArm.rotation.set(0, 0, -0.15);
       if (forearm) forearm.rotation.set(-0.4, 0, 0);
       break;
 
     case 'drinking_active': {
-      // Tilts arm up to bring bottle to mouth, shakes at high nausea
+      // Tilts arm up to bring bottle to mouth, centered, shakes at high nausea
       const shake = nauseaLevel > 0.5 ? Math.sin(time * 20) * nauseaLevel * 0.04 : 0;
-      armGroup.position.set(0.15 + shake, 0.05 + breath, -0.3);
-      armGroup.rotation.set(-1.2, 0.15, shake * 2);
+      armGroup.position.set(0.05, -0.2 + shake, 0.05 + breath, 0.55);
+      armGroup.rotation.set(1.2, 0.1, shake * 2);
       if (upperArm) upperArm.rotation.set(0, 0, -0.05);
       if (forearm) forearm.rotation.set(-0.8, 0, 0);
       break;
@@ -3813,7 +5492,7 @@ function updateCamera(dt, time) {
     return;
   }
 
-  if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+  if (gameState === STATES.AIMING) {
     camera.position.copy(PLAYER_POS);
 
     // Apply aim rotation
@@ -3826,6 +5505,17 @@ function updateCamera(dt, time) {
       camera.rotation.z += Math.sin(time * 1.8) * wineWobbleIntensity;
       camera.rotation.x += Math.sin(time * 1.3) * wineWobbleIntensity * 0.5;
     }
+    return;
+  }
+
+  // 3rd person camera for run-up, charging, and throw release
+  if (gameState === STATES.RUN_UP || gameState === STATES.CHARGING || gameState === STATES.THROW_RELEASE) {
+    const playerGroundY = getTerrainHeight(0, playerRunZ);
+    const targetPos = new THREE.Vector3(1.5, playerGroundY + 2.5, playerRunZ + 4);
+    const lookTarget = new THREE.Vector3(0, playerGroundY + 1.5, playerRunZ - 3);
+
+    camera.position.lerp(targetPos, 0.08);
+    camera.lookAt(lookTarget);
     return;
   }
 
@@ -4024,7 +5714,7 @@ function updateShaders(time) {
 }
 
 function updateHUD() {
-  if (gameState === STATES.AIMING || gameState === STATES.CHARGING) {
+  if (gameState === STATES.AIMING || gameState === STATES.CHARGING || gameState === STATES.RUN_UP) {
     const round = ROUNDS[currentRound];
     let infoHtml =
       `Round ${currentRound + 1}: "${round.name}"<br>` +
@@ -4036,34 +5726,37 @@ function updateHUD() {
       infoHtml += `<br>Bottle 2: ${Math.round(drinkProgress * 100)}%`;
     }
 
+    // Show beer/dice info in HUD
+    if (beerAvailable && !beerFinished) {
+      infoHtml += `<br>Beer: ${Math.round(beerDrinkProgress * 100)}%`;
+    } else if (beerFinished) {
+      infoHtml += `<br>Beer: DONE (+20%)`;
+    }
+    if (diceAvailable) {
+      infoHtml += `<br>Dice: ${diceThrowsRemaining} left`;
+    }
+
     document.getElementById('info-panel').innerHTML = infoHtml;
     document.getElementById('wind-indicator').innerHTML = getWindDisplay();
-    document.getElementById('angle-display').textContent = `Angle: ${Math.round(aimPitch)}°`;
 
-    // Bottle toggle
-    const bottleToggle = document.getElementById('bottle-toggle');
-    if (bottle2Available && !bottle2Completed && gameState === STATES.AIMING) {
-      bottleToggle.style.display = 'flex';
-      bottleToggle.classList.remove('completed');
-      // Dynamic label
-      if (bottle2InProgress) {
-        document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDF77';
-        document.getElementById('bottle-toggle-label').textContent = isMobile ? 'DRINK' : 'DRINK (D)';
-      } else {
-        document.getElementById('bottle-toggle-icon').textContent = '\uD83C\uDF77';
-        document.getElementById('bottle-toggle-label').textContent = isMobile ? 'BOTTLE' : 'BOTTLE (D)';
-      }
-    } else if (bottle2Completed) {
-      bottleToggle.style.display = 'flex';
-      bottleToggle.classList.add('completed');
+    if (gameState === STATES.AIMING) {
+    document.getElementById('angle-display').textContent = `Angle: ${Math.round(aimPitch)}°`;
     } else {
-      bottleToggle.style.display = 'none';
+      document.getElementById('angle-display').textContent = '';
+    }
+
+    // Item toggle button
+    const hasAnyItem = beerAvailable || diceAvailable || bottle2Available;
+    if (hasAnyItem && gameState === STATES.AIMING) {
+      updateItemToggleButton();
+    } else if (!hasAnyItem || (gameState !== STATES.AIMING && gameState !== STATES.DRINKING)) {
+      document.getElementById('bottle-toggle').style.display = 'none';
     }
   } else {
     document.getElementById('angle-display').textContent = '';
-    // Keep bottle toggle visible during DRINKING for bottle 2
-    if (gameState === STATES.DRINKING && bottleNumber === 2) {
-      document.getElementById('bottle-toggle').style.display = 'flex';
+    // Keep toggle visible during DRINKING for bottle 2 or beer
+    if (gameState === STATES.DRINKING && (bottleNumber === 2 || isDrinkingBeer)) {
+      updateItemToggleButton();
     } else if (gameState !== STATES.DRINKING) {
       document.getElementById('bottle-toggle').style.display = 'none';
     }
@@ -4081,8 +5774,17 @@ function animate() {
 
   // State updates
   if (gameState === STATES.DRINKING) updateDrinking(dt, time);
+  if (gameState === STATES.RUN_UP || gameState === STATES.CHARGING) updateRunUp(dt);
   if (gameState === STATES.CHARGING) updateCharging(dt);
+  if (gameState === STATES.THROW_RELEASE) {
+    throwReleaseTimer += dt;
+  }
   if (gameState === STATES.FLIGHT) updateJavelinPhysics(dt);
+
+  // Dice physics and result timer
+  if (diceFlying) updateDicePhysics(dt);
+  if (diceLanded) updateDiceResult(dt);
+  updateFireworks(dt);
 
   // Nausea decays during non-drinking states when bottle 2 is in progress
   if (bottle2InProgress && gameState !== STATES.DRINKING) {
@@ -4091,6 +5793,7 @@ function animate() {
 
   updateCamera(dt, time);
   updateArmAnimation(dt, time);
+  updatePlayerBodyAnimation(dt, time);
   updateParticles(dt, time);
   updateNPCs(dt, time);
   updateShaders(time);
